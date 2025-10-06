@@ -200,6 +200,13 @@ export class GameScene extends Phaser.Scene {
       const gy = Math.floor(world.y / this.state.gridSize);
       if (!this.isWithinBounds(gx, gy)) return;
 
+      const isPlayerTile =
+        gx === this.state.player.pos.x && gy === this.state.player.pos.y;
+      if (isPlayerTile && this.findResourceAt(gx, gy)) {
+        this.collectResource();
+        return;
+      }
+
       if (this.shouldMoveOnPointer(p)) {
         this.setMovementTarget(gx, gy);
         return;
@@ -485,28 +492,35 @@ export class GameScene extends Phaser.Scene {
       this.state.player.pos.x = newX;
       this.state.player.pos.y = newY;
       this.redrawPlayer();
+      this.collectResource();
     }
+  }
+
+  private findResourceAt(x: number, y: number) {
+    return this.state.resources.find(r => r.pos.x === x && r.pos.y === y && r.amount > 0);
   }
 
   private collectResource() {
     const playerPos = this.state.player.pos;
-    const resource = this.state.resources.find(r => 
-      r.pos.x === playerPos.x && r.pos.y === playerPos.y && r.amount > 0
-    );
-    
-    if (resource) {
-      const collected = Math.min(5, resource.amount); // Collect up to 5 units
-      resource.amount -= collected;
-      this.state.inventory[resource.type] = (this.state.inventory[resource.type] || 0) + collected;
-      
-      this.addEvent(`Collected ${collected} ${resource.type} (${resource.amount} remaining)`);
-      
-      // If resource is depleted, remove it
-      if (resource.amount <= 0) {
-        this.state.resources = this.state.resources.filter(r => r !== resource);
-        this.addEvent(`${resource.type} deposit depleted`);
-      }
+    const resource = this.findResourceAt(playerPos.x, playerPos.y);
+
+    if (!resource) return false;
+
+    const collected = Math.min(5, resource.amount); // Collect up to 5 units
+    resource.amount -= collected;
+    this.state.inventory[resource.type] = (this.state.inventory[resource.type] || 0) + collected;
+
+    this.addEvent(`Collected ${collected} ${resource.type} (${resource.amount} remaining)`);
+
+    // If resource is depleted, remove it
+    if (resource.amount <= 0) {
+      this.state.resources = this.state.resources.filter(r => r !== resource);
+      this.addEvent(`${resource.type} deposit depleted`);
     }
+
+    this.redrawEntities();
+    this.updateAllUI();
+    return true;
   }
 
   private drinkWater() {
@@ -692,6 +706,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.movementPath.length === 0) {
       this.movementAccum = 0;
+      this.collectResource();
     }
   }
 
