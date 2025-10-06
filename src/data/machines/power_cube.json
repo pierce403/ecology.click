@@ -1,0 +1,25 @@
+{
+  "id": "power_cube",
+  "name": "Power Cube",
+  "build": {
+    "parts": {
+      "engine_small": 1,
+      "hydraulic_pump": 1,
+      "reservoir": 1,
+      "hoses": 2,
+      "bolts": 12
+    }
+  },
+  "power": {
+    "kind": "hydraulic",
+    "flow_gpm": 20,
+    "pressure_psi": 2300
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {}
+  },
+  "provides": {
+    "hydraulic": true
+  }
+}

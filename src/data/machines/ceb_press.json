@@ -1,0 +1,39 @@
+{
+  "id": "ceb_press",
+  "name": "CEB Press (The Liberator)",
+  "build": {
+    "parts": {
+      "steel_plate": 40,
+      "angle_iron": 12,
+      "bolts": 30,
+      "hydraulic_cylinder": 1,
+      "control_box": 1
+    }
+  },
+  "power": {
+    "kind": "hydraulic",
+    "requires": "power_cube",
+    "flow_gpm": 20,
+    "pressure_psi": 2300
+  },
+  "operate": {
+    "inputs": {
+      "soil": 1,
+      "water": 0.05
+    },
+    "outputs": {
+      "brick_ceb": 1
+    }
+  },
+  "quality": {
+    "clay_pct": [
+      0.2,
+      0.4
+    ],
+    "moisture": [
+      0.08,
+      0.12
+    ],
+    "min_pressure_psi": 2000
+  }
+}
