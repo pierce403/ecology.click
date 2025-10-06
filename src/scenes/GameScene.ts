@@ -259,12 +259,6 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     
-    // Check if something is already building
-    if (this.state.buildQueue.length > 0) {
-      this.addEvent(`Cannot build ${item.name} - something is already being built`);
-      return;
-    }
-    
     // Consume resources
     for (const [resource, amount] of Object.entries(item.requirements)) {
       this.state.inventory[resource] = (this.state.inventory[resource] || 0) - amount;
@@ -278,7 +272,7 @@ export class GameScene extends Phaser.Scene {
       totalTime: item.buildTime
     });
     
-    this.addEvent(`Started building ${item.name} (${item.buildTime}s)`);
+    this.addEvent(`Queued ${item.name} for building (${item.buildTime}s)`);
     this.updateAllUI();
   }
 
@@ -298,12 +292,13 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < this.state.buildQueue.length; i++) {
       const item = this.state.buildQueue[i];
       const itemDiv = document.createElement('div');
-      itemDiv.className = 'queue-item';
+      const isBuilding = i === 0; // First item is being built
+      itemDiv.className = `queue-item ${isBuilding ? 'building' : 'queued'}`;
       
       const progress = ((item.totalTime - item.timeRemaining) / item.totalTime) * 100;
       
       itemDiv.innerHTML = `
-        <div class="queue-name">${item.name}</div>
+        <div class="queue-name">${isBuilding ? '🔨 ' : '⏳ '}${item.name}</div>
         <div class="queue-progress">
           <div class="progress-bar">
             <div class="progress-fill" style="width: ${progress}%"></div>
@@ -520,9 +515,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private processBuildQueue(dt: number) {
-    // Process build queue
-    for (let i = this.state.buildQueue.length - 1; i >= 0; i--) {
-      const item = this.state.buildQueue[i];
+    // Only process the first item in the queue (one at a time)
+    if (this.state.buildQueue.length > 0) {
+      const item = this.state.buildQueue[0];
       item.timeRemaining -= dt;
       
       if (item.timeRemaining <= 0) {
@@ -539,7 +534,7 @@ export class GameScene extends Phaser.Scene {
         }
         
         // Remove from queue
-        this.state.buildQueue.splice(i, 1);
+        this.state.buildQueue.shift();
         
         // Update UI
         this.updateAllUI();
