@@ -17,7 +17,7 @@ export function hydraulicsSystem(state: WorldState) {
 }
 
 // v0: demo crafting — if CEB press is powered, generate bricks slowly
-export function craftingSystem(state: WorldState, dt: number) {
+export function craftingSystem(state: WorldState, dt: number, onEvent?: (message: string) => void) {
   // simplistic tick counter stored on the entity (dynamic property)
   for (const e of state.placed) {
     if (e.id === 'ceb_press' && e.powered) {
@@ -25,6 +25,7 @@ export function craftingSystem(state: WorldState, dt: number) {
       if ((e as any)._t > 1.5) { // every 1.5s produce 1 brick
         (e as any)._t = 0;
         state.inventory['brick_ceb'] = (state.inventory['brick_ceb'] ?? 0) + 1;
+        onEvent?.('CEB Press produced 1 brick');
       }
     }
   }

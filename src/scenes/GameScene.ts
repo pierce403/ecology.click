@@ -16,6 +16,7 @@ export class GameScene extends Phaser.Scene {
   };
 
   private hotbar!: HTMLDivElement;
+  private eventLog!: HTMLDivElement;
 
   constructor() {
     super('game');
@@ -56,8 +57,10 @@ export class GameScene extends Phaser.Scene {
       const existing = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
       if (existing) {
         this.state.placed = this.state.placed.filter(e => e !== existing);
+        this.addEvent(`Removed ${existing.id} at (${gx}, ${gy})`);
       } else {
         this.state.placed.push({ id: this.state.selected, pos: { x: gx, y: gy }, powered: false });
+        this.addEvent(`Placed ${this.state.selected} at (${gx}, ${gy})`);
       }
       this.redrawEntities();
     });
@@ -81,12 +84,18 @@ export class GameScene extends Phaser.Scene {
 
     // hotbar
     this.buildHotbar();
+    
+    // event log
+    this.buildEventLog();
 
     // entity visuals container
     this.add.layer();
     this.initializeResources();
     this.redrawEntities();
     this.redrawPlayer();
+    
+    // Add initial event
+    this.addEvent('Welcome to the desert! Collect resources and survive.');
   }
 
   private buildHotbar() {
@@ -107,6 +116,28 @@ export class GameScene extends Phaser.Scene {
       return d;
     };
     this.hotbar.replaceChildren(...items.map(mk));
+  }
+
+  private buildEventLog() {
+    this.eventLog = document.getElementById('event-log') as HTMLDivElement;
+    this.eventLog.innerHTML = '<div class="event-log-content"></div>';
+  }
+
+  private addEvent(message: string) {
+    const content = this.eventLog.querySelector('.event-log-content') as HTMLDivElement;
+    const eventDiv = document.createElement('div');
+    eventDiv.className = 'event-item';
+    eventDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    
+    content.appendChild(eventDiv);
+    
+    // Keep only last 20 events
+    while (content.children.length > 20) {
+      content.removeChild(content.firstChild!);
+    }
+    
+    // Scroll to bottom
+    content.scrollTop = content.scrollHeight;
   }
 
   private initializeResources() {
@@ -186,9 +217,12 @@ export class GameScene extends Phaser.Scene {
       resource.amount -= collected;
       this.state.inventory[resource.type] = (this.state.inventory[resource.type] || 0) + collected;
       
+      this.addEvent(`Collected ${collected} ${resource.type} (${resource.amount} remaining)`);
+      
       // If resource is depleted, remove it
       if (resource.amount <= 0) {
         this.state.resources = this.state.resources.filter(r => r !== resource);
+        this.addEvent(`${resource.type} deposit depleted`);
       }
     }
   }
@@ -197,9 +231,9 @@ export class GameScene extends Phaser.Scene {
     if (this.state.inventory.water > 0) {
       this.state.inventory.water--;
       this.state.player.thirst = Math.min(100, this.state.player.thirst + 25);
-      console.log('Drank water! Thirst restored.');
+      this.addEvent(`Drank water! Thirst restored to ${Math.round(this.state.player.thirst)}%`);
     } else {
-      console.log('No water available!');
+      this.addEvent('No water available!');
     }
   }
 
@@ -223,15 +257,15 @@ export class GameScene extends Phaser.Scene {
     const clay = this.state.inventory['clay'] ?? 0;
     const water = this.state.inventory['water'] ?? 0;
     const stone = this.state.inventory['stone'] ?? 0;
-    const health = this.state.player.health;
-    const thirst = this.state.player.thirst;
+    const health = Math.round(this.state.player.health);
+    const thirst = Math.round(this.state.player.thirst);
     
     hud.textContent = `ecology.click — Health: ${health} | Thirst: ${thirst} | Clay: ${clay} | Water: ${water} | Stone: ${stone} | Bricks: ${bricks}`;
   }
 
   update(t: number, dtMs: number) {
     hydraulicsSystem(this.state);
-    craftingSystem(this.state, dtMs / 1000);
+    craftingSystem(this.state, dtMs / 1000, (message) => this.addEvent(message));
     this.updateSurvival(dtMs / 1000);
     
     // reflect powered state by tinting
@@ -247,8 +281,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSurvival(dt: number) {
-    // Thirst decreases over time
-    this.state.player.thirst = Math.max(0, this.state.player.thirst - dt * 2);
+    // Thirst decreases much more gradually (about 3 drinks per day)
+    // Assuming 1 day = 24 minutes of real time, thirst should drop from 100 to 0 in 8 minutes
+    // So 100 points over 480 seconds = 0.208 points per second
+    this.state.player.thirst = Math.max(0, this.state.player.thirst - dt * 0.2);
+    
+    // Auto-drink if thirst is below 50% and player has water
+    if (this.state.player.thirst < 50 && this.state.inventory.water > 0) {
+      this.state.inventory.water--;
+      this.state.player.thirst = Math.min(100, this.state.player.thirst + 25);
+      this.addEvent(`Auto-drank water! Thirst: ${Math.round(this.state.player.thirst)}%`);
+    }
     
     // Health decreases if thirst is too low
     if (this.state.player.thirst < 20) {
@@ -256,11 +299,11 @@ export class GameScene extends Phaser.Scene {
     }
     
     // Energy decreases over time
-    this.state.player.energy = Math.max(0, this.state.player.energy - dt * 0.5);
+    this.state.player.energy = Math.max(0, this.state.player.energy - dt * 0.1);
     
     // Game over if health reaches 0
     if (this.state.player.health <= 0) {
-      console.log('Game Over! You died of thirst.');
+      this.addEvent('Game Over! You died of thirst.');
       // Could restart or show game over screen
     }
   }
