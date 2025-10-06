@@ -91,16 +91,25 @@ export class GameScene extends Phaser.Scene {
       const gx = Math.floor(world.x / this.state.gridSize);
       const gy = Math.floor(world.y / this.state.gridSize);
       if (gx < 0 || gy < 0 || gx >= this.state.width || gy >= this.state.height) return;
+      
       // toggle place/remove
       const existing = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
       if (existing) {
         this.state.placed = this.state.placed.filter(e => e !== existing);
         this.addEvent(`Removed ${existing.id} at (${gx}, ${gy})`);
+        this.redrawEntities();
       } else {
-        this.state.placed.push({ id: this.state.selected, pos: { x: gx, y: gy }, powered: false });
-        this.addEvent(`Placed ${this.state.selected} at (${gx}, ${gy})`);
+        // Check if we have the item in inventory before placing
+        if ((this.state.inventory[this.state.selected] || 0) > 0) {
+          this.state.placed.push({ id: this.state.selected, pos: { x: gx, y: gy }, powered: false });
+          this.state.inventory[this.state.selected] = (this.state.inventory[this.state.selected] || 0) - 1;
+          this.addEvent(`Placed ${this.state.selected} at (${gx}, ${gy})`);
+          this.redrawEntities();
+          this.updateAllUI(); // Update hotbar to reflect inventory change
+        } else {
+          this.addEvent(`Cannot place ${this.state.selected} - not in inventory`);
+        }
       }
-      this.redrawEntities();
     });
 
     // Player movement
@@ -154,7 +163,9 @@ export class GameScene extends Phaser.Scene {
     // Get all placeable items from inventory
     const placeableItems = [
       { id: 'power_cube', label: 'PC', name: 'Power Cube' },
-      { id: 'ceb_press', label: 'CEB', name: 'CEB Press' }
+      { id: 'ceb_press', label: 'CEB', name: 'CEB Press' },
+      { id: 'water_well', label: 'WW', name: 'Water Well' },
+      { id: 'storage_shed', label: 'SS', name: 'Storage Shed' }
     ].filter(item => (this.state.inventory[item.id] || 0) > 0);
 
     const mk = (item: any) => {
@@ -392,11 +403,21 @@ export class GameScene extends Phaser.Scene {
 
     // Draw placed entities
     for (const e of this.state.placed) {
-      const tileIndex = e.id === 'power_cube' ? 2 : 3; // arbitrary color slot
-      const frameX = tileIndex * 32;
-      const s = this.add.image(e.pos.x * this.state.gridSize + 16, e.pos.y * this.state.gridSize + 16, 'tiles');
-      s.setCrop(frameX, 0, 32, 32);
-      (s as any).isEntity = true;
+      const colors = {
+        power_cube: 0x4a6,      // Green
+        ceb_press: 0x46a,       // Blue  
+        water_well: 0x69f,      // Light blue
+        storage_shed: 0x8a6     // Orange
+      };
+      const color = colors[e.id as keyof typeof colors] || 0x666;
+      
+      const entitySprite = this.add.circle(
+        e.pos.x * this.state.gridSize + 16,
+        e.pos.y * this.state.gridSize + 16,
+        12,
+        color
+      );
+      (entitySprite as any).isEntity = true;
     }
 
     // Draw resources
@@ -505,11 +526,21 @@ export class GameScene extends Phaser.Scene {
     // reflect powered state by tinting
     for (const s of this.children.list) {
       if ((s as any).isEntity) {
-        const spr = s as Phaser.GameObjects.Image;
+        const spr = s as Phaser.GameObjects.Circle;
         const gx = Math.floor(spr.x / this.state.gridSize);
         const gy = Math.floor(spr.y / this.state.gridSize);
         const ent = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
-        if (ent) spr.setTint(ent.powered ? 0xa8d0ff : 0xffffff);
+        if (ent) {
+          // For circles, we change the fill color instead of tinting
+          const baseColors = {
+            power_cube: 0x4a6,
+            ceb_press: 0x46a,
+            water_well: 0x69f,
+            storage_shed: 0x8a6
+          };
+          const baseColor = baseColors[ent.id as keyof typeof baseColors] || 0x666;
+          spr.setFillStyle(ent.powered ? 0xa8d0ff : baseColor);
+        }
       }
     }
   }
