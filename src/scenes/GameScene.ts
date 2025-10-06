@@ -55,6 +55,13 @@ export class GameScene extends Phaser.Scene {
   private buildablesList!: HTMLDivElement;
   private buildQueue!: HTMLDivElement;
   private inventoryList!: HTMLDivElement;
+  private overlaysCollapsed = false;
+  private overlayElements: HTMLElement[] = [];
+  private overlayToggleButton?: HTMLButtonElement;
+  private modeToggleButton?: HTMLButtonElement;
+  private interactionMode: 'build' | 'move' = 'build';
+  private movementPath: { x: number; y: number }[] = [];
+  private movementAccum = 0;
 
   constructor() {
     super('game');
@@ -85,32 +92,7 @@ export class GameScene extends Phaser.Scene {
       g.lineBetween(0, y * map.tileSize, map.width * map.tileSize, y * map.tileSize);
     }
 
-    // input for placement
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      const world = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      const gx = Math.floor(world.x / this.state.gridSize);
-      const gy = Math.floor(world.y / this.state.gridSize);
-      if (gx < 0 || gy < 0 || gx >= this.state.width || gy >= this.state.height) return;
-      
-      // toggle place/remove
-      const existing = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
-      if (existing) {
-        this.state.placed = this.state.placed.filter(e => e !== existing);
-        this.addEvent(`Removed ${existing.id} at (${gx}, ${gy})`);
-        this.redrawEntities();
-      } else {
-        // Check if we have the item in inventory before placing
-        if ((this.state.inventory[this.state.selected] || 0) > 0) {
-          this.state.placed.push({ id: this.state.selected, pos: { x: gx, y: gy }, powered: false });
-          this.state.inventory[this.state.selected] = (this.state.inventory[this.state.selected] || 0) - 1;
-          this.addEvent(`Placed ${this.state.selected} at (${gx}, ${gy})`);
-          this.redrawEntities();
-          this.updateAllUI(); // Update hotbar to reflect inventory change
-        } else {
-          this.addEvent(`Cannot place ${this.state.selected} - not in inventory`);
-        }
-      }
-    });
+    this.setupPointerInput();
 
     // Player movement
     this.input.keyboard?.on('keydown-W', () => this.movePlayer(0, -1));
@@ -140,9 +122,12 @@ export class GameScene extends Phaser.Scene {
     
     // build queue
     this.buildBuildQueue();
-    
+
     // inventory list
     this.buildInventoryList();
+
+    this.setupOverlayToggle();
+    this.setupInteractionModeToggle();
 
     // entity visuals container
     this.add.layer();
@@ -196,16 +181,67 @@ export class GameScene extends Phaser.Scene {
     const eventDiv = document.createElement('div');
     eventDiv.className = 'event-item';
     eventDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-    
+
     content.appendChild(eventDiv);
-    
+
     // Keep only last 20 events
     while (content.children.length > 20) {
       content.removeChild(content.firstChild!);
     }
-    
+
     // Scroll to bottom
     content.scrollTop = content.scrollHeight;
+  }
+
+  private setupPointerInput() {
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      const world = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+      const gx = Math.floor(world.x / this.state.gridSize);
+      const gy = Math.floor(world.y / this.state.gridSize);
+      if (!this.isWithinBounds(gx, gy)) return;
+
+      if (this.shouldMoveOnPointer(p)) {
+        this.setMovementTarget(gx, gy);
+        return;
+      }
+
+      this.handleTileInteraction(gx, gy);
+    });
+  }
+
+  private shouldMoveOnPointer(p: Phaser.Input.Pointer) {
+    if (this.interactionMode === 'move') return true;
+    if (p.rightButtonDown()) return true;
+
+    const pointerType = p.pointerType;
+    if ((pointerType === 'touch' || pointerType === 'pen') && this.interactionMode === 'move') {
+      return true;
+    }
+
+    return false;
+  }
+
+  private handleTileInteraction(gx: number, gy: number) {
+    this.movementPath = [];
+    this.movementAccum = 0;
+
+    const existing = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
+    if (existing) {
+      this.state.placed = this.state.placed.filter(e => e !== existing);
+      this.addEvent(`Removed ${existing.id} at (${gx}, ${gy})`);
+      this.redrawEntities();
+      return;
+    }
+
+    if ((this.state.inventory[this.state.selected] || 0) > 0) {
+      this.state.placed.push({ id: this.state.selected, pos: { x: gx, y: gy }, powered: false });
+      this.state.inventory[this.state.selected] = (this.state.inventory[this.state.selected] || 0) - 1;
+      this.addEvent(`Placed ${this.state.selected} at (${gx}, ${gy})`);
+      this.redrawEntities();
+      this.updateAllUI();
+    } else {
+      this.addEvent(`Cannot place ${this.state.selected} - not in inventory`);
+    }
   }
 
   private buildBuildablesList() {
@@ -439,9 +475,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private movePlayer(dx: number, dy: number) {
+    this.movementPath = [];
+    this.movementAccum = 0;
     const newX = this.state.player.pos.x + dx;
     const newY = this.state.player.pos.y + dy;
-    
+
     // Check bounds
     if (newX >= 0 && newX < this.state.width && newY >= 0 && newY < this.state.height) {
       this.state.player.pos.x = newX;
@@ -522,7 +560,8 @@ export class GameScene extends Phaser.Scene {
     craftingSystem(this.state, dtMs / 1000, (message) => this.addEvent(message));
     this.updateSurvival(dtMs / 1000);
     this.processBuildQueue(dtMs / 1000);
-    
+    this.updateMovement(dtMs / 1000);
+
     // reflect powered state by tinting
     for (const s of this.children.list) {
       if ((s as any).isEntity) {
@@ -599,5 +638,131 @@ export class GameScene extends Phaser.Scene {
       this.addEvent('Game Over! You died of thirst.');
       // Could restart or show game over screen
     }
+  }
+
+  private setMovementTarget(tileX: number, tileY: number) {
+    if (!this.isWithinBounds(tileX, tileY)) return;
+
+    const current = this.state.player.pos;
+    if (current.x === tileX && current.y === tileY) {
+      this.movementPath = [];
+      this.movementAccum = 0;
+      return;
+    }
+
+    const path: { x: number; y: number }[] = [];
+    let cx = current.x;
+    let cy = current.y;
+    const stepX = Math.sign(tileX - cx);
+    const stepY = Math.sign(tileY - cy);
+
+    while (cx !== tileX) {
+      cx += stepX;
+      path.push({ x: cx, y: cy });
+    }
+
+    while (cy !== tileY) {
+      cy += stepY;
+      path.push({ x: cx, y: cy });
+    }
+
+    this.movementPath = path.filter(pos => this.isWithinBounds(pos.x, pos.y));
+    this.movementAccum = 0;
+  }
+
+  private updateMovement(dt: number) {
+    if (this.movementPath.length === 0) return;
+
+    const tilesPerSecond = 4;
+    const stepTime = 1 / tilesPerSecond;
+    this.movementAccum += dt;
+
+    let moved = false;
+    while (this.movementAccum >= stepTime && this.movementPath.length > 0) {
+      this.movementAccum -= stepTime;
+      const next = this.movementPath.shift()!;
+      this.state.player.pos.x = next.x;
+      this.state.player.pos.y = next.y;
+      moved = true;
+    }
+
+    if (moved) {
+      this.redrawPlayer();
+    }
+
+    if (this.movementPath.length === 0) {
+      this.movementAccum = 0;
+    }
+  }
+
+  private setupOverlayToggle() {
+    this.overlayElements = [
+      document.querySelector('.hud'),
+      this.hotbar,
+      this.eventLog,
+      this.buildablesList,
+      this.buildQueue,
+      this.inventoryList
+    ].filter((el): el is HTMLElement => !!el);
+
+    const button = document.getElementById('overlay-toggle');
+    this.overlayToggleButton = button instanceof HTMLButtonElement ? button : undefined;
+
+    this.applyOverlayVisibility();
+
+    if (!this.overlayToggleButton) return;
+
+    this.overlayToggleButton.addEventListener('click', () => {
+      this.overlaysCollapsed = !this.overlaysCollapsed;
+      this.applyOverlayVisibility();
+    });
+  }
+
+  private applyOverlayVisibility() {
+    for (const el of this.overlayElements) {
+      if (this.overlaysCollapsed) {
+        el.classList.add('overlay-hidden');
+      } else {
+        el.classList.remove('overlay-hidden');
+      }
+    }
+
+    if (this.overlayToggleButton) {
+      this.overlayToggleButton.textContent = this.overlaysCollapsed ? 'Show UI' : 'Hide UI';
+      this.overlayToggleButton.setAttribute('aria-expanded', (!this.overlaysCollapsed).toString());
+    }
+  }
+
+  private setupInteractionModeToggle() {
+    const button = document.getElementById('mode-toggle');
+    this.modeToggleButton = button instanceof HTMLButtonElement ? button : undefined;
+    if (!this.modeToggleButton) return;
+
+    const prefersTouch = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false;
+
+    this.interactionMode = prefersTouch ? 'move' : 'build';
+    this.updateModeToggleButton();
+
+    this.modeToggleButton.addEventListener('click', () => {
+      this.interactionMode = this.interactionMode === 'move' ? 'build' : 'move';
+      this.updateModeToggleButton();
+    });
+  }
+
+  private updateModeToggleButton() {
+    if (!this.modeToggleButton) return;
+
+    this.modeToggleButton.dataset.mode = this.interactionMode;
+    this.modeToggleButton.textContent = this.interactionMode === 'move' ? 'Move Mode' : 'Build Mode';
+    this.modeToggleButton.setAttribute('aria-pressed', this.interactionMode === 'move' ? 'true' : 'false');
+    this.modeToggleButton.title = this.interactionMode === 'move'
+      ? 'Tap tiles to walk the player. Tap to switch back to building.'
+      : 'Tap tiles to place or remove builds. Tap to switch back to movement.';
+  }
+
+  private isWithinBounds(x: number, y: number) {
+    return x >= 0 && y >= 0 && x < this.state.width && y < this.state.height;
   }
 }
