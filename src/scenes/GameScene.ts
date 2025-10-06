@@ -54,6 +54,7 @@ export class GameScene extends Phaser.Scene {
   private eventLog!: HTMLDivElement;
   private buildablesList!: HTMLDivElement;
   private buildQueue!: HTMLDivElement;
+  private inventoryList!: HTMLDivElement;
 
   constructor() {
     super('game');
@@ -130,6 +131,9 @@ export class GameScene extends Phaser.Scene {
     
     // build queue
     this.buildBuildQueue();
+    
+    // inventory list
+    this.buildInventoryList();
 
     // entity visuals container
     this.add.layer();
@@ -143,14 +147,24 @@ export class GameScene extends Phaser.Scene {
 
   private buildHotbar() {
     this.hotbar = document.getElementById('hotbar') as HTMLDivElement;
-    const items = [
-      { id: 'power_cube', label: 'PC' },
-      { id: 'ceb_press', label: 'CEB' }
-    ];
-    const mk = (item:any) => {
+    this.updateHotbar();
+  }
+
+  private updateHotbar() {
+    // Get all placeable items from inventory
+    const placeableItems = [
+      { id: 'power_cube', label: 'PC', name: 'Power Cube' },
+      { id: 'ceb_press', label: 'CEB', name: 'CEB Press' }
+    ].filter(item => (this.state.inventory[item.id] || 0) > 0);
+
+    const mk = (item: any) => {
       const d = document.createElement('div');
       d.className = 'slot' + (this.state.selected === item.id ? ' active' : '');
-      d.textContent = item.label;
+      d.innerHTML = `
+        <div class="slot-label">${item.label}</div>
+        <div class="slot-count">${this.state.inventory[item.id] || 0}</div>
+      `;
+      d.title = `${item.name} (${this.state.inventory[item.id] || 0} available)`;
       d.onclick = () => {
         this.state.selected = item.id;
         for (const child of Array.from(this.hotbar.children)) child.classList.remove('active');
@@ -158,7 +172,7 @@ export class GameScene extends Phaser.Scene {
       };
       return d;
     };
-    this.hotbar.replaceChildren(...items.map(mk));
+    this.hotbar.replaceChildren(...placeableItems.map(mk));
   }
 
   private buildEventLog() {
@@ -245,6 +259,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     
+    // Check if something is already building
+    if (this.state.buildQueue.length > 0) {
+      this.addEvent(`Cannot build ${item.name} - something is already being built`);
+      return;
+    }
+    
     // Consume resources
     for (const [resource, amount] of Object.entries(item.requirements)) {
       this.state.inventory[resource] = (this.state.inventory[resource] || 0) - amount;
@@ -259,8 +279,7 @@ export class GameScene extends Phaser.Scene {
     });
     
     this.addEvent(`Started building ${item.name} (${item.buildTime}s)`);
-    this.updateBuildablesList();
-    this.updateBuildQueue();
+    this.updateAllUI();
   }
 
   private buildBuildQueue() {
@@ -276,7 +295,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     
-    for (const item of this.state.buildQueue) {
+    for (let i = 0; i < this.state.buildQueue.length; i++) {
+      const item = this.state.buildQueue[i];
       const itemDiv = document.createElement('div');
       itemDiv.className = 'queue-item';
       
@@ -289,10 +309,62 @@ export class GameScene extends Phaser.Scene {
             <div class="progress-fill" style="width: ${progress}%"></div>
           </div>
           <div class="queue-time">${Math.ceil(item.timeRemaining)}s</div>
+          <button class="cancel-btn" onclick="window.gameScene?.cancelBuilding(${i})">×</button>
         </div>
       `;
       
       this.buildQueue.appendChild(itemDiv);
+    }
+  }
+
+  private buildInventoryList() {
+    this.inventoryList = document.getElementById('inventory-list') as HTMLDivElement;
+    this.updateInventoryList();
+  }
+
+  private updateInventoryList() {
+    this.inventoryList.innerHTML = '';
+    
+    const allItems = [
+      { id: 'clay', name: 'Clay', type: 'resource' },
+      { id: 'water', name: 'Water', type: 'resource' },
+      { id: 'stone', name: 'Stone', type: 'resource' },
+      { id: 'brick_ceb', name: 'Bricks', type: 'resource' },
+      { id: 'power_cube', name: 'Power Cube', type: 'item' },
+      { id: 'ceb_press', name: 'CEB Press', type: 'item' },
+      { id: 'water_well', name: 'Water Well', type: 'item' },
+      { id: 'storage_shed', name: 'Storage Shed', type: 'item' }
+    ];
+
+    for (const item of allItems) {
+      const count = this.state.inventory[item.id] || 0;
+      if (count > 0) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `inventory-item ${item.type}`;
+        itemDiv.innerHTML = `
+          <div class="inventory-name">${item.name}</div>
+          <div class="inventory-count">${count}</div>
+        `;
+        this.inventoryList.appendChild(itemDiv);
+      }
+    }
+  }
+
+  private cancelBuilding(index: number) {
+    if (index >= 0 && index < this.state.buildQueue.length) {
+      const item = this.state.buildQueue[index];
+      
+      // Refund resources
+      const buildable = this.state.buildables.find(b => b.id === item.id);
+      if (buildable) {
+        for (const [resource, amount] of Object.entries(buildable.requirements)) {
+          this.state.inventory[resource] = (this.state.inventory[resource] || 0) + amount;
+        }
+      }
+      
+      this.state.buildQueue.splice(index, 1);
+      this.addEvent(`Cancelled building ${item.name}`);
+      this.updateAllUI();
     }
   }
 
@@ -418,8 +490,15 @@ export class GameScene extends Phaser.Scene {
     
     hud.textContent = `ecology.click — Health: ${health} | Thirst: ${thirst} | Clay: ${clay} | Water: ${water} | Stone: ${stone} | Bricks: ${bricks}`;
     
-    // Update buildables list when resources change
+    // Update all UI elements
+    this.updateAllUI();
+  }
+
+  private updateAllUI() {
     this.updateBuildablesList();
+    this.updateBuildQueue();
+    this.updateInventoryList();
+    this.updateHotbar();
   }
 
   update(t: number, dtMs: number) {
@@ -463,8 +542,7 @@ export class GameScene extends Phaser.Scene {
         this.state.buildQueue.splice(i, 1);
         
         // Update UI
-        this.updateBuildablesList();
-        this.updateBuildQueue();
+        this.updateAllUI();
       }
     }
   }

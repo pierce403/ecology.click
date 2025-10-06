@@ -11,4 +11,7 @@ const config: Phaser.Types.Core.GameConfig = {
   render: { pixelArt: true },
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Make gameScene globally accessible for cancel buttons
+(window as any).gameScene = game.scene.getScene('game') as GameScene;

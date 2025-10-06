@@ -33,8 +33,18 @@
       .progress-bar { flex:1; height:8px; background:#333; border-radius:4px; overflow:hidden; }
       .progress-fill { height:100%; background:#4a6; transition:width 0.3s; }
       .queue-time { font-size:11px; color:#aaa; min-width:30px; text-align:right; }
+      .cancel-btn { background:#d44; color:white; border:none; border-radius:3px; width:20px; height:20px; cursor:pointer; font-size:12px; }
+      .cancel-btn:hover { background:#f66; }
+      .inventory-list { position:fixed; top:8px; right:8px; width:200px; height:300px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
+      .inventory-item { display:flex; justify-content:space-between; align-items:center; padding:4px 8px; margin-bottom:4px; border-radius:4px; }
+      .inventory-item.resource { background:#1a2a1a; border:1px solid #4a6; }
+      .inventory-item.item { background:#1a1a2a; border:1px solid #46a; }
+      .inventory-name { font-size:12px; }
+      .inventory-count { font-size:11px; color:#aaa; font-weight:bold; }
+      .slot-count { font-size:10px; color:#aaa; margin-top:2px; }
+      .slot-label { font-size:12px; }
     </style>
-    <script type="module" crossorigin src="/assets/index-GPfF_UaT.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bu1S_D93.js"></script>
   </head>
   <body>
     <div id="app"></div>
@@ -43,5 +53,6 @@
     <div class="event-log" id="event-log"></div>
     <div class="buildables-list" id="buildables-list"></div>
     <div class="build-queue" id="build-queue"></div>
+    <div class="inventory-list" id="inventory-list"></div>
   </body>
 </html>
