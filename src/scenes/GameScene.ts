@@ -235,8 +235,10 @@ export class GameScene extends Phaser.Scene {
     const existing = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
     if (existing) {
       this.state.placed = this.state.placed.filter(e => e !== existing);
-      this.addEvent(`Removed ${existing.id} at (${gx}, ${gy})`);
+      this.state.inventory[existing.id] = (this.state.inventory[existing.id] || 0) + 1;
+      this.addEvent(`Removed ${existing.id} at (${gx}, ${gy}) and returned it to inventory`);
       this.redrawEntities();
+      this.updateAllUI();
       return;
     }
 
