@@ -9,7 +9,9 @@ export class GameScene extends Phaser.Scene {
     width: 20,
     height: 12,
     placed: [],
-    inventory: { brick_ceb: 0 },
+    player: { pos: { x: 15, y: 10 }, health: 100, thirst: 100, energy: 100 },
+    resources: [],
+    inventory: { brick_ceb: 0, clay: 0, water: 0, stone: 0 },
     selected: 'power_cube'
   };
 
@@ -21,7 +23,7 @@ export class GameScene extends Phaser.Scene {
 
   preload() {
     this.load.image('tiles', '/tilesets/placeholder-tiles.png');
-    this.load.json('map', '/maps/demo-map.json');
+    this.load.json('map', '/maps/desert-map.json');
   }
 
   create() {
@@ -60,11 +62,17 @@ export class GameScene extends Phaser.Scene {
       this.redrawEntities();
     });
 
-    // WASD pan
-    this.input.keyboard?.on('keydown-W', () => this.cameras.main.scrollY -= 20);
-    this.input.keyboard?.on('keydown-S', () => this.cameras.main.scrollY += 20);
-    this.input.keyboard?.on('keydown-A', () => this.cameras.main.scrollX -= 20);
-    this.input.keyboard?.on('keydown-D', () => this.cameras.main.scrollX += 20);
+    // Player movement
+    this.input.keyboard?.on('keydown-W', () => this.movePlayer(0, -1));
+    this.input.keyboard?.on('keydown-S', () => this.movePlayer(0, 1));
+    this.input.keyboard?.on('keydown-A', () => this.movePlayer(-1, 0));
+    this.input.keyboard?.on('keydown-D', () => this.movePlayer(1, 0));
+    
+    // Resource collection
+    this.input.keyboard?.on('keydown-SPACE', () => this.collectResource());
+    
+    // Drink water to restore thirst
+    this.input.keyboard?.on('keydown-E', () => this.drinkWater());
 
     // simple HUD redraw loop
     this.time.addEvent({
@@ -76,7 +84,9 @@ export class GameScene extends Phaser.Scene {
 
     // entity visuals container
     this.add.layer();
+    this.initializeResources();
     this.redrawEntities();
+    this.redrawPlayer();
   }
 
   private buildHotbar() {
@@ -99,28 +109,131 @@ export class GameScene extends Phaser.Scene {
     this.hotbar.replaceChildren(...items.map(mk));
   }
 
+  private initializeResources() {
+    const map = this.cache.json.get('map') as any;
+    const resourceLayer = map.layers.find((l: any) => l.name === 'resources');
+    
+    if (resourceLayer) {
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          const resourceType = resourceLayer.data[y][x];
+          if (resourceType > 0) {
+            const resourceTypes = ['', 'clay', 'stone', 'water'];
+            this.state.resources.push({
+              pos: { x, y },
+              type: resourceTypes[resourceType],
+              amount: 50, // Start with 50 units
+              maxAmount: 50
+            });
+          }
+        }
+      }
+    }
+  }
+
   private redrawEntities() {
     // clear old sprites
     this.children.list.filter(o => (o as any).isEntity).forEach(o => o.destroy());
+    this.children.list.filter(o => (o as any).isResource).forEach(o => o.destroy());
 
+    // Draw placed entities
     for (const e of this.state.placed) {
       const tileIndex = e.id === 'power_cube' ? 2 : 3; // arbitrary color slot
       const frameX = tileIndex * 32;
       const s = this.add.image(e.pos.x * this.state.gridSize + 16, e.pos.y * this.state.gridSize + 16, 'tiles');
       s.setCrop(frameX, 0, 32, 32);
-      (s as any).isEntity = True;
+      (s as any).isEntity = true;
     }
+
+    // Draw resources
+    for (const resource of this.state.resources) {
+      if (resource.amount > 0) {
+        const colors = { clay: 0x8B4513, stone: 0x696969, water: 0x4169E1 };
+        const color = colors[resource.type as keyof typeof colors] || 0xFFFFFF;
+        const size = Math.max(4, (resource.amount / resource.maxAmount) * 12);
+        
+        const resourceSprite = this.add.circle(
+          resource.pos.x * this.state.gridSize + 16,
+          resource.pos.y * this.state.gridSize + 16,
+          size,
+          color
+        );
+        (resourceSprite as any).isResource = true;
+      }
+    }
+  }
+
+  private movePlayer(dx: number, dy: number) {
+    const newX = this.state.player.pos.x + dx;
+    const newY = this.state.player.pos.y + dy;
+    
+    // Check bounds
+    if (newX >= 0 && newX < this.state.width && newY >= 0 && newY < this.state.height) {
+      this.state.player.pos.x = newX;
+      this.state.player.pos.y = newY;
+      this.redrawPlayer();
+    }
+  }
+
+  private collectResource() {
+    const playerPos = this.state.player.pos;
+    const resource = this.state.resources.find(r => 
+      r.pos.x === playerPos.x && r.pos.y === playerPos.y && r.amount > 0
+    );
+    
+    if (resource) {
+      const collected = Math.min(5, resource.amount); // Collect up to 5 units
+      resource.amount -= collected;
+      this.state.inventory[resource.type] = (this.state.inventory[resource.type] || 0) + collected;
+      
+      // If resource is depleted, remove it
+      if (resource.amount <= 0) {
+        this.state.resources = this.state.resources.filter(r => r !== resource);
+      }
+    }
+  }
+
+  private drinkWater() {
+    if (this.state.inventory.water > 0) {
+      this.state.inventory.water--;
+      this.state.player.thirst = Math.min(100, this.state.player.thirst + 25);
+      console.log('Drank water! Thirst restored.');
+    } else {
+      console.log('No water available!');
+    }
+  }
+
+  private redrawPlayer() {
+    // Remove old player sprite
+    this.children.list.filter(o => (o as any).isPlayer).forEach(o => o.destroy());
+    
+    // Draw player
+    const playerSprite = this.add.circle(
+      this.state.player.pos.x * this.state.gridSize + 16,
+      this.state.player.pos.y * this.state.gridSize + 16,
+      8,
+      0x00ff00
+    );
+    (playerSprite as any).isPlayer = true;
   }
 
   private updateHUD() {
     const hud = document.querySelector('.hud') as HTMLDivElement;
     const bricks = this.state.inventory['brick_ceb'] ?? 0;
-    hud.textContent = `ecology.click — bricks: ${bricks} — selected: ${this.state.selected}`;
+    const clay = this.state.inventory['clay'] ?? 0;
+    const water = this.state.inventory['water'] ?? 0;
+    const stone = this.state.inventory['stone'] ?? 0;
+    const health = this.state.player.health;
+    const thirst = this.state.player.thirst;
+    
+    hud.textContent = `ecology.click — Health: ${health} | Thirst: ${thirst} | Clay: ${clay} | Water: ${water} | Stone: ${stone} | Bricks: ${bricks}`;
   }
 
   update(t: number, dtMs: number) {
     hydraulicsSystem(this.state);
     craftingSystem(this.state, dtMs / 1000);
+    this.updateSurvival(dtMs / 1000);
+    
     // reflect powered state by tinting
     for (const s of this.children.list) {
       if ((s as any).isEntity) {
@@ -130,6 +243,25 @@ export class GameScene extends Phaser.Scene {
         const ent = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
         if (ent) spr.setTint(ent.powered ? 0xa8d0ff : 0xffffff);
       }
+    }
+  }
+
+  private updateSurvival(dt: number) {
+    // Thirst decreases over time
+    this.state.player.thirst = Math.max(0, this.state.player.thirst - dt * 2);
+    
+    // Health decreases if thirst is too low
+    if (this.state.player.thirst < 20) {
+      this.state.player.health = Math.max(0, this.state.player.health - dt * 5);
+    }
+    
+    // Energy decreases over time
+    this.state.player.energy = Math.max(0, this.state.player.energy - dt * 0.5);
+    
+    // Game over if health reaches 0
+    if (this.state.player.health <= 0) {
+      console.log('Game Over! You died of thirst.');
+      // Could restart or show game over screen
     }
   }
 }
