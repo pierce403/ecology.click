@@ -45,8 +45,23 @@
       .inventory-count { font-size:11px; color:#aaa; font-weight:bold; }
       .slot-count { font-size:10px; color:#aaa; margin-top:2px; }
       .slot-label { font-size:12px; }
+      .overlay-hidden { display:none !important; }
+      .ui-button { position:fixed; z-index:10; background:#111a; color:#e6e8ea; border:1px solid #2c3e4a; border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; backdrop-filter:blur(8px); box-shadow:0 4px 12px #0006; transition:background 0.2s, transform 0.2s; touch-action:manipulation; }
+      .ui-button:active { transform:scale(0.98); }
+      #overlay-toggle { top:12px; right:12px; }
+      #mode-toggle { bottom:12px; right:12px; }
+      #mode-toggle[data-mode='move'] { background:#1a3820aa; border-color:#3a6a46; }
+      #mode-toggle[data-mode='build'] { background:#38201aaa; border-color:#6a463a; }
+      @media (max-width: 900px) {
+        .buildables-list, .inventory-list { width: min(240px, 90vw); }
+        .event-log { width: min(280px, 90vw); height: 160px; }
+        .build-queue { width: min(280px, 90vw); }
+        .hotbar { gap:6px; padding:6px 10px; }
+        .slot { width:44px; height:44px; }
+        .hud { max-width: min(90vw, 420px); font-size:13px; }
+      }
     </style>
-    <script type="module" crossorigin src="/assets/index-DllH85I9.js"></script>
+    <script type="module" crossorigin src="/assets/index-BH6Edmm5.js"></script>
   </head>
   <body>
     <div id="app"></div>
@@ -56,5 +71,7 @@
     <div class="buildables-list" id="buildables-list"></div>
     <div class="build-queue" id="build-queue"></div>
     <div class="inventory-list" id="inventory-list"></div>
+    <button id="overlay-toggle" class="ui-button" type="button" aria-expanded="true">Hide UI</button>
+    <button id="mode-toggle" class="ui-button" type="button" data-mode="build" aria-pressed="false">Build Mode</button>
   </body>
 </html>
