@@ -12,11 +12,48 @@ export class GameScene extends Phaser.Scene {
     player: { pos: { x: 15, y: 10 }, health: 100, thirst: 100, energy: 100 },
     resources: [],
     inventory: { brick_ceb: 0, clay: 0, water: 0, stone: 0 },
-    selected: 'power_cube'
+    selected: 'power_cube',
+    buildables: [
+      {
+        id: 'power_cube',
+        name: 'Power Cube',
+        description: 'Provides hydraulic power to adjacent machines',
+        requirements: { stone: 10, clay: 5 },
+        buildTime: 30,
+        unlocked: true
+      },
+      {
+        id: 'ceb_press',
+        name: 'CEB Press',
+        description: 'Compresses earth into building blocks',
+        requirements: { stone: 20, clay: 15, brick_ceb: 5 },
+        buildTime: 120,
+        unlocked: false
+      },
+      {
+        id: 'water_well',
+        name: 'Water Well',
+        description: 'Extracts water from underground',
+        requirements: { stone: 15, clay: 10 },
+        buildTime: 60,
+        unlocked: true
+      },
+      {
+        id: 'storage_shed',
+        name: 'Storage Shed',
+        description: 'Increases inventory capacity',
+        requirements: { stone: 25, clay: 20 },
+        buildTime: 90,
+        unlocked: true
+      }
+    ],
+    buildQueue: []
   };
 
   private hotbar!: HTMLDivElement;
   private eventLog!: HTMLDivElement;
+  private buildablesList!: HTMLDivElement;
+  private buildQueue!: HTMLDivElement;
 
   constructor() {
     super('game');
@@ -87,6 +124,12 @@ export class GameScene extends Phaser.Scene {
     
     // event log
     this.buildEventLog();
+    
+    // buildables list
+    this.buildBuildablesList();
+    
+    // build queue
+    this.buildBuildQueue();
 
     // entity visuals container
     this.add.layer();
@@ -138,6 +181,119 @@ export class GameScene extends Phaser.Scene {
     
     // Scroll to bottom
     content.scrollTop = content.scrollHeight;
+  }
+
+  private buildBuildablesList() {
+    this.buildablesList = document.getElementById('buildables-list') as HTMLDivElement;
+    this.updateBuildablesList();
+  }
+
+  private updateBuildablesList() {
+    // Check for unlocks
+    this.checkUnlocks();
+    
+    this.buildablesList.innerHTML = '';
+    
+    for (const item of this.state.buildables) {
+      const canBuild = this.canBuildItem(item);
+      const itemDiv = document.createElement('div');
+      itemDiv.className = `buildable-item ${canBuild ? 'available' : 'unavailable'}`;
+      
+      const requirements = Object.entries(item.requirements)
+        .map(([resource, amount]) => `${resource}: ${amount}`)
+        .join(', ');
+      
+      itemDiv.innerHTML = `
+        <div class="buildable-name">${item.name}</div>
+        <div class="buildable-desc">${item.description}</div>
+        <div class="buildable-req">${requirements}</div>
+        <div class="buildable-time">${item.buildTime}s</div>
+      `;
+      
+      if (canBuild) {
+        itemDiv.onclick = () => this.startBuilding(item);
+      }
+      
+      this.buildablesList.appendChild(itemDiv);
+    }
+  }
+
+  private checkUnlocks() {
+    // Unlock CEB Press when player has 5 bricks
+    const cebPress = this.state.buildables.find(item => item.id === 'ceb_press');
+    if (cebPress && !cebPress.unlocked && (this.state.inventory.brick_ceb || 0) >= 5) {
+      cebPress.unlocked = true;
+      this.addEvent('CEB Press blueprint unlocked!');
+    }
+  }
+
+  private canBuildItem(item: any): boolean {
+    if (!item.unlocked) return false;
+    
+    for (const [resource, amount] of Object.entries(item.requirements)) {
+      if ((this.state.inventory[resource] || 0) < amount) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private startBuilding(item: any) {
+    // Check if we can still build it
+    if (!this.canBuildItem(item)) {
+      this.addEvent(`Cannot build ${item.name} - insufficient resources`);
+      return;
+    }
+    
+    // Consume resources
+    for (const [resource, amount] of Object.entries(item.requirements)) {
+      this.state.inventory[resource] = (this.state.inventory[resource] || 0) - amount;
+    }
+    
+    // Add to build queue
+    this.state.buildQueue.push({
+      id: item.id,
+      name: item.name,
+      timeRemaining: item.buildTime,
+      totalTime: item.buildTime
+    });
+    
+    this.addEvent(`Started building ${item.name} (${item.buildTime}s)`);
+    this.updateBuildablesList();
+    this.updateBuildQueue();
+  }
+
+  private buildBuildQueue() {
+    this.buildQueue = document.getElementById('build-queue') as HTMLDivElement;
+    this.updateBuildQueue();
+  }
+
+  private updateBuildQueue() {
+    this.buildQueue.innerHTML = '';
+    
+    if (this.state.buildQueue.length === 0) {
+      this.buildQueue.innerHTML = '<div class="queue-empty">No items building</div>';
+      return;
+    }
+    
+    for (const item of this.state.buildQueue) {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'queue-item';
+      
+      const progress = ((item.totalTime - item.timeRemaining) / item.totalTime) * 100;
+      
+      itemDiv.innerHTML = `
+        <div class="queue-name">${item.name}</div>
+        <div class="queue-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${progress}%"></div>
+          </div>
+          <div class="queue-time">${Math.ceil(item.timeRemaining)}s</div>
+        </div>
+      `;
+      
+      this.buildQueue.appendChild(itemDiv);
+    }
   }
 
   private initializeResources() {
@@ -261,12 +417,16 @@ export class GameScene extends Phaser.Scene {
     const thirst = Math.round(this.state.player.thirst);
     
     hud.textContent = `ecology.click — Health: ${health} | Thirst: ${thirst} | Clay: ${clay} | Water: ${water} | Stone: ${stone} | Bricks: ${bricks}`;
+    
+    // Update buildables list when resources change
+    this.updateBuildablesList();
   }
 
   update(t: number, dtMs: number) {
     hydraulicsSystem(this.state);
     craftingSystem(this.state, dtMs / 1000, (message) => this.addEvent(message));
     this.updateSurvival(dtMs / 1000);
+    this.processBuildQueue(dtMs / 1000);
     
     // reflect powered state by tinting
     for (const s of this.children.list) {
@@ -276,6 +436,35 @@ export class GameScene extends Phaser.Scene {
         const gy = Math.floor(spr.y / this.state.gridSize);
         const ent = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
         if (ent) spr.setTint(ent.powered ? 0xa8d0ff : 0xffffff);
+      }
+    }
+  }
+
+  private processBuildQueue(dt: number) {
+    // Process build queue
+    for (let i = this.state.buildQueue.length - 1; i >= 0; i--) {
+      const item = this.state.buildQueue[i];
+      item.timeRemaining -= dt;
+      
+      if (item.timeRemaining <= 0) {
+        // Building completed
+        this.addEvent(`${item.name} construction completed!`);
+        
+        // Add to inventory or place in world
+        if (item.id === 'power_cube' || item.id === 'ceb_press') {
+          // These are placed items, add to inventory for manual placement
+          this.state.inventory[item.id] = (this.state.inventory[item.id] || 0) + 1;
+        } else {
+          // Other items go directly to inventory
+          this.state.inventory[item.id] = (this.state.inventory[item.id] || 0) + 1;
+        }
+        
+        // Remove from queue
+        this.state.buildQueue.splice(i, 1);
+        
+        // Update UI
+        this.updateBuildablesList();
+        this.updateBuildQueue();
       }
     }
   }

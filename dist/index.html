@@ -16,13 +16,32 @@
       .event-log-content { height:100%; overflow-y:auto; padding:8px; font-size:12px; line-height:1.4; }
       .event-item { margin-bottom:4px; color:#ccc; }
       .event-item:last-child { margin-bottom:0; }
+      .buildables-list { position:fixed; left:8px; top:50px; width:250px; height:400px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
+      .buildable-item { margin-bottom:8px; padding:8px; border:1px solid #333; border-radius:6px; cursor:pointer; transition:all 0.2s; }
+      .buildable-item.available { background:#1a2a1a; border-color:#4a6; }
+      .buildable-item.unavailable { background:#2a1a1a; border-color:#666; color:#666; cursor:not-allowed; }
+      .buildable-item.available:hover { background:#2a3a2a; }
+      .buildable-name { font-weight:bold; margin-bottom:4px; }
+      .buildable-desc { font-size:11px; color:#ccc; margin-bottom:4px; }
+      .buildable-req { font-size:10px; color:#aaa; margin-bottom:2px; }
+      .buildable-time { font-size:10px; color:#888; }
+      .build-queue { position:fixed; bottom:8px; left:8px; width:300px; height:150px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
+      .queue-empty { color:#666; font-style:italic; text-align:center; margin-top:20px; }
+      .queue-item { margin-bottom:8px; padding:6px; border:1px solid #333; border-radius:4px; background:#1a1a1a; }
+      .queue-name { font-weight:bold; margin-bottom:4px; }
+      .queue-progress { display:flex; align-items:center; gap:8px; }
+      .progress-bar { flex:1; height:8px; background:#333; border-radius:4px; overflow:hidden; }
+      .progress-fill { height:100%; background:#4a6; transition:width 0.3s; }
+      .queue-time { font-size:11px; color:#aaa; min-width:30px; text-align:right; }
     </style>
-    <script type="module" crossorigin src="/assets/index-CGPkhlz3.js"></script>
+    <script type="module" crossorigin src="/assets/index-GPfF_UaT.js"></script>
   </head>
   <body>
     <div id="app"></div>
     <div class="hud">ecology.click — WASD to pan, Mouse to place. (Prototype)</div>
     <div class="hotbar" id="hotbar"></div>
     <div class="event-log" id="event-log"></div>
+    <div class="buildables-list" id="buildables-list"></div>
+    <div class="build-queue" id="build-queue"></div>
   </body>
 </html>

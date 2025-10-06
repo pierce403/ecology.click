@@ -20,6 +20,22 @@ export type ResourceNode = {
   maxAmount: number;
 };
 
+export type BuildableItem = {
+  id: string;
+  name: string;
+  description: string;
+  requirements: Record<string, number>; // resource requirements
+  buildTime: number; // in seconds
+  unlocked: boolean;
+};
+
+export type BuildQueueItem = {
+  id: string;
+  name: string;
+  timeRemaining: number;
+  totalTime: number;
+};
+
 export type WorldState = {
   gridSize: number;
   width: number;
@@ -29,4 +45,6 @@ export type WorldState = {
   resources: ResourceNode[];
   inventory: Record<string, number>;
   selected: string; // current placement id
+  buildables: BuildableItem[];
+  buildQueue: BuildQueueItem[];
 };
