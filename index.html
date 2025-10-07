@@ -7,6 +7,7 @@
     <title>ecology.click</title>
     <style>
       html, body { margin:0; padding:0; height:100%; background:#0b0f12; color:#e6e8ea; font-family: ui-sans-serif, system-ui, -apple-system; }
+      :root { --overlay-toggle-row-height: 40px; }
       #app { height:100%; width:100%; }
       #ui-overlay { position:fixed; inset:0; pointer-events:none; z-index:5; }
       #ui-overlay > * { pointer-events:auto; }
@@ -39,7 +40,7 @@
       .queue-time { font-size:11px; color:#aaa; min-width:30px; text-align:right; }
       .cancel-btn { background:#d44; color:white; border:none; border-radius:3px; width:20px; height:20px; cursor:pointer; font-size:12px; }
       .cancel-btn:hover { background:#f66; }
-      .inventory-list { position:fixed; top:8px; right:8px; width:200px; height:300px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
+      .inventory-list { position:fixed; top:calc(12px + var(--overlay-toggle-row-height) * 4 + 12px); right:12px; width:200px; height:300px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
       .inventory-item { display:flex; justify-content:space-between; align-items:center; padding:4px 8px; margin-bottom:4px; border-radius:4px; }
       .inventory-item.resource { background:#1a2a1a; border:1px solid #4a6; }
       .inventory-item.item { background:#1a1a2a; border:1px solid #46a; }
@@ -50,7 +51,8 @@
       .overlay-hidden { display:none !important; }
       .ui-button { position:fixed; z-index:10; background:#111a; color:#e6e8ea; border:1px solid #2c3e4a; border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; backdrop-filter:blur(8px); box-shadow:0 4px 12px #0006; transition:background 0.2s, transform 0.2s; touch-action:manipulation; }
       .ui-button:active { transform:scale(0.98); }
-      #overlay-toggle { top:12px; right:12px; }
+      .overlay-toggle-group { position:fixed; top:12px; right:12px; display:flex; flex-direction:column; align-items:flex-end; gap:8px; z-index:10; }
+      .overlay-toggle-group .ui-button { position:static; width:180px; }
       #mode-toggle { bottom:12px; right:12px; }
       #mode-toggle[data-mode='move'] { background:#1a3820aa; border-color:#3a6a46; }
       #mode-toggle[data-mode='build'] { background:#38201aaa; border-color:#6a463a; }
@@ -68,12 +70,15 @@
         #ui-overlay > .buildables-list,
         #ui-overlay > .inventory-list,
         #ui-overlay > .event-log,
-        #ui-overlay > .build-queue { position:static; width:min(480px, 94vw); max-width:94vw; transform:none; left:auto; right:auto; }
+        #ui-overlay > .build-queue,
+        #ui-overlay > .overlay-toggle-group { position:static; width:min(480px, 94vw); max-width:94vw; transform:none; left:auto; right:auto; }
         .hud { text-align:center; }
         .buildables-list,
         .inventory-list,
         .event-log,
         .build-queue { height:auto; max-height:clamp(140px, 24vh, 200px); }
+        .overlay-toggle-group { align-items:stretch; }
+        .overlay-toggle-group .ui-button { width:100%; }
         .event-log { order:4; }
         .build-queue { order:5; }
         .hotbar { bottom:12px; left:50%; transform:translateX(-50%); }
@@ -85,12 +90,17 @@
     <div id="app"></div>
     <div id="ui-overlay">
       <div class="hud">ecology.click — WASD to pan, Mouse to place. (Prototype)</div>
+      <div id="overlay-toggle-group" class="overlay-toggle-group">
+        <button id="toggle-buildables" class="ui-button" type="button" aria-pressed="true" aria-controls="buildables-list">Hide Buildables</button>
+        <button id="toggle-inventory" class="ui-button" type="button" aria-pressed="true" aria-controls="inventory-list">Hide Inventory</button>
+        <button id="toggle-event-log" class="ui-button" type="button" aria-pressed="true" aria-controls="event-log">Hide Event Log</button>
+        <button id="toggle-build-queue" class="ui-button" type="button" aria-pressed="true" aria-controls="build-queue">Hide Build Queue</button>
+      </div>
       <div class="hotbar" id="hotbar"></div>
       <div class="event-log" id="event-log"></div>
       <div class="buildables-list" id="buildables-list"></div>
       <div class="build-queue" id="build-queue"></div>
       <div class="inventory-list" id="inventory-list"></div>
-      <button id="overlay-toggle" class="ui-button" type="button" aria-expanded="true">Hide UI</button>
       <button id="mode-toggle" class="ui-button" type="button" data-mode="build" aria-pressed="false">Build Mode</button>
     </div>
     <script type="module" src="/src/main.ts"></script>
