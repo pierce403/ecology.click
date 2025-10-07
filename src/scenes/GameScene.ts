@@ -55,14 +55,13 @@ export class GameScene extends Phaser.Scene {
   private buildablesList!: HTMLDivElement;
   private buildQueue!: HTMLDivElement;
   private inventoryList!: HTMLDivElement;
-  private overlaysCollapsed = false;
-  private overlayElements: HTMLElement[] = [];
-  private overlayToggleButton?: HTMLButtonElement;
+  private overlayToggles: { button: HTMLButtonElement; element: HTMLElement; name: string }[] = [];
   private modeToggleButton?: HTMLButtonElement;
   private interactionMode: 'build' | 'move' = 'build';
   private movementPath: { x: number; y: number }[] = [];
   private movementAccum = 0;
   private playerSprite?: Phaser.GameObjects.Container;
+  private playerDirection: 'up' | 'down' | 'left' | 'right' = 'right';
 
   constructor() {
     super('game');
@@ -127,7 +126,7 @@ export class GameScene extends Phaser.Scene {
     // inventory list
     this.buildInventoryList();
 
-    this.setupOverlayToggle();
+    this.setupOverlayToggles();
     this.setupInteractionModeToggle();
 
     // entity visuals container
@@ -492,6 +491,7 @@ export class GameScene extends Phaser.Scene {
 
     // Check bounds
     if (newX >= 0 && newX < this.state.width && newY >= 0 && newY < this.state.height) {
+      this.updatePlayerDirection(dx, dy);
       this.state.player.pos.x = newX;
       this.state.player.pos.y = newY;
       this.redrawPlayer();
@@ -563,6 +563,42 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.playerSprite!.setPosition(x, y);
+    this.updatePlayerSpriteOrientation();
+  }
+
+  private updatePlayerDirection(dx: number, dy: number) {
+    if (dx === 0 && dy === 0) return;
+
+    if (dx !== 0) {
+      this.playerDirection = dx > 0 ? 'right' : 'left';
+    } else {
+      this.playerDirection = dy > 0 ? 'down' : 'up';
+    }
+
+    this.updatePlayerSpriteOrientation();
+  }
+
+  private updatePlayerSpriteOrientation() {
+    if (!this.playerSprite) return;
+
+    const sprite = this.playerSprite;
+    sprite.setScale(1, 1);
+
+    switch (this.playerDirection) {
+      case 'left':
+        sprite.setAngle(0);
+        sprite.setScale(-1, 1);
+        break;
+      case 'right':
+        sprite.setAngle(0);
+        break;
+      case 'up':
+        sprite.setAngle(-90);
+        break;
+      case 'down':
+        sprite.setAngle(90);
+        break;
+    }
   }
 
   private updateHUD() {
@@ -713,6 +749,9 @@ export class GameScene extends Phaser.Scene {
     while (this.movementAccum >= stepTime && this.movementPath.length > 0) {
       this.movementAccum -= stepTime;
       const next = this.movementPath.shift()!;
+      const currentX = this.state.player.pos.x;
+      const currentY = this.state.player.pos.y;
+      this.updatePlayerDirection(next.x - currentX, next.y - currentY);
       this.state.player.pos.x = next.x;
       this.state.player.pos.y = next.y;
       moved = true;
@@ -728,42 +767,40 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private setupOverlayToggle() {
-    this.overlayElements = [
-      document.querySelector('.hud'),
-      this.hotbar,
-      this.eventLog,
-      this.buildablesList,
-      this.buildQueue,
-      this.inventoryList
-    ].filter((el): el is HTMLElement => !!el);
+  private setupOverlayToggles() {
+    const configs: { name: string; buttonId: string; targetSelector: string }[] = [
+      { name: 'Buildables', buttonId: 'toggle-buildables', targetSelector: '#buildables-list' },
+      { name: 'Inventory', buttonId: 'toggle-inventory', targetSelector: '#inventory-list' },
+      { name: 'Event Log', buttonId: 'toggle-event-log', targetSelector: '#event-log' },
+      { name: 'Build Queue', buttonId: 'toggle-build-queue', targetSelector: '#build-queue' }
+    ];
 
-    const button = document.getElementById('overlay-toggle');
-    this.overlayToggleButton = button instanceof HTMLButtonElement ? button : undefined;
+    this.overlayToggles = [];
 
-    this.applyOverlayVisibility();
+    for (const config of configs) {
+      const buttonEl = document.getElementById(config.buttonId);
+      const targetEl = document.querySelector(config.targetSelector);
 
-    if (!this.overlayToggleButton) return;
+      if (!(buttonEl instanceof HTMLButtonElement) || !(targetEl instanceof HTMLElement)) {
+        continue;
+      }
 
-    this.overlayToggleButton.addEventListener('click', () => {
-      this.overlaysCollapsed = !this.overlaysCollapsed;
-      this.applyOverlayVisibility();
-    });
+      const toggle = { button: buttonEl, element: targetEl, name: config.name };
+      buttonEl.setAttribute('aria-controls', targetEl.id);
+      buttonEl.addEventListener('click', () => {
+        toggle.element.classList.toggle('overlay-hidden');
+        this.updateOverlayToggleButton(toggle);
+      });
+
+      this.overlayToggles.push(toggle);
+      this.updateOverlayToggleButton(toggle);
+    }
   }
 
-  private applyOverlayVisibility() {
-    for (const el of this.overlayElements) {
-      if (this.overlaysCollapsed) {
-        el.classList.add('overlay-hidden');
-      } else {
-        el.classList.remove('overlay-hidden');
-      }
-    }
-
-    if (this.overlayToggleButton) {
-      this.overlayToggleButton.textContent = this.overlaysCollapsed ? 'Show UI' : 'Hide UI';
-      this.overlayToggleButton.setAttribute('aria-expanded', (!this.overlaysCollapsed).toString());
-    }
+  private updateOverlayToggleButton(toggle: { button: HTMLButtonElement; element: HTMLElement; name: string }) {
+    const isHidden = toggle.element.classList.contains('overlay-hidden');
+    toggle.button.textContent = `${isHidden ? 'Show' : 'Hide'} ${toggle.name}`;
+    toggle.button.setAttribute('aria-pressed', (!isHidden).toString());
   }
 
   private setupInteractionModeToggle() {
