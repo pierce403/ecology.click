@@ -8,6 +8,8 @@
     <style>
       html, body { margin:0; padding:0; height:100%; background:#0b0f12; color:#e6e8ea; font-family: ui-sans-serif, system-ui, -apple-system; }
       #app { height:100%; width:100%; }
+      #ui-overlay { position:fixed; inset:0; pointer-events:none; z-index:5; }
+      #ui-overlay > * { pointer-events:auto; }
       .hud { position:fixed; top:8px; left:8px; background:#1118; padding:8px 12px; border-radius:8px; font-size:14px; }
       .hotbar { position:fixed; bottom:8px; left:50%; transform:translateX(-50%); display:flex; gap:8px; background:#1118; padding:8px; border-radius:10px; }
       .slot { width:48px; height:48px; display:grid; place-items:center; border:1px solid #333; border-radius:8px; cursor:pointer; }
@@ -60,18 +62,37 @@
         .slot { width:44px; height:44px; }
         .hud { max-width: min(90vw, 420px); font-size:13px; }
       }
+      @media (max-width: 640px) {
+        #ui-overlay { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:10px; padding:10px; padding-bottom:120px; }
+        #ui-overlay > .hud,
+        #ui-overlay > .buildables-list,
+        #ui-overlay > .inventory-list,
+        #ui-overlay > .event-log,
+        #ui-overlay > .build-queue { position:static; width:min(480px, 94vw); max-width:94vw; transform:none; left:auto; right:auto; }
+        .hud { text-align:center; }
+        .buildables-list,
+        .inventory-list,
+        .event-log,
+        .build-queue { height:auto; max-height:clamp(140px, 24vh, 200px); }
+        .event-log { order:4; }
+        .build-queue { order:5; }
+        .hotbar { bottom:12px; left:50%; transform:translateX(-50%); }
+        #mode-toggle { bottom:calc(12px + 64px + 12px); }
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div class="hud">ecology.click — WASD to pan, Mouse to place. (Prototype)</div>
-    <div class="hotbar" id="hotbar"></div>
-    <div class="event-log" id="event-log"></div>
-    <div class="buildables-list" id="buildables-list"></div>
-    <div class="build-queue" id="build-queue"></div>
-    <div class="inventory-list" id="inventory-list"></div>
-    <button id="overlay-toggle" class="ui-button" type="button" aria-expanded="true">Hide UI</button>
-    <button id="mode-toggle" class="ui-button" type="button" data-mode="build" aria-pressed="false">Build Mode</button>
+    <div id="ui-overlay">
+      <div class="hud">ecology.click — WASD to pan, Mouse to place. (Prototype)</div>
+      <div class="hotbar" id="hotbar"></div>
+      <div class="event-log" id="event-log"></div>
+      <div class="buildables-list" id="buildables-list"></div>
+      <div class="build-queue" id="build-queue"></div>
+      <div class="inventory-list" id="inventory-list"></div>
+      <button id="overlay-toggle" class="ui-button" type="button" aria-expanded="true">Hide UI</button>
+      <button id="mode-toggle" class="ui-button" type="button" data-mode="build" aria-pressed="false">Build Mode</button>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
