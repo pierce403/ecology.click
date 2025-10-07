@@ -57,6 +57,10 @@ export class GameScene extends Phaser.Scene {
   private inventoryList!: HTMLDivElement;
   private overlayToggles: { button: HTMLButtonElement; element: HTMLElement; name: string }[] = [];
   private modeToggleButton?: HTMLButtonElement;
+  private hudHealthValue?: HTMLSpanElement;
+  private hudThirstValue?: HTMLSpanElement;
+  private hudAboutSection?: HTMLDivElement;
+  private hudAboutToggle?: HTMLButtonElement;
   private interactionMode: 'build' | 'move' = 'build';
   private movementPath: { x: number; y: number }[] = [];
   private movementAccum = 0;
@@ -94,6 +98,7 @@ export class GameScene extends Phaser.Scene {
 
     this.setupPointerInput();
 
+    this.setupHud();
     // Player movement
     this.input.keyboard?.on('keydown-W', () => this.movePlayer(0, -1));
     this.input.keyboard?.on('keydown-S', () => this.movePlayer(0, 1));
@@ -129,6 +134,8 @@ export class GameScene extends Phaser.Scene {
     this.setupOverlayToggles();
     this.setupInteractionModeToggle();
 
+    this.updateHUD();
+
     // entity visuals container
     this.add.layer();
     this.initializeResources();
@@ -142,6 +149,38 @@ export class GameScene extends Phaser.Scene {
   private buildHotbar() {
     this.hotbar = document.getElementById('hotbar') as HTMLDivElement;
     this.updateHotbar();
+  }
+
+  private setupHud() {
+    const hud = document.querySelector('.hud');
+    if (!(hud instanceof HTMLDivElement)) return;
+
+    const healthEl = hud.querySelector('[data-hud-health]');
+    this.hudHealthValue = healthEl instanceof HTMLSpanElement ? healthEl : undefined;
+    const thirstEl = hud.querySelector('[data-hud-thirst]');
+    this.hudThirstValue = thirstEl instanceof HTMLSpanElement ? thirstEl : undefined;
+
+    const aboutSection = hud.querySelector('#hud-about');
+    this.hudAboutSection = aboutSection instanceof HTMLDivElement ? aboutSection : undefined;
+
+    const aboutToggle = hud.querySelector('.hud-about-toggle');
+    this.hudAboutToggle = aboutToggle instanceof HTMLButtonElement ? aboutToggle : undefined;
+
+    if (this.hudAboutToggle && this.hudAboutSection) {
+      const initialExpanded = !this.hudAboutSection.hasAttribute('hidden');
+      this.hudAboutToggle.setAttribute('aria-expanded', initialExpanded.toString());
+      this.hudAboutToggle.title = 'Read the ecology.click prologue';
+      this.hudAboutToggle.addEventListener('click', () => {
+        const willShow = this.hudAboutSection?.hasAttribute('hidden') ?? true;
+        if (!this.hudAboutSection) return;
+        if (willShow) {
+          this.hudAboutSection.removeAttribute('hidden');
+        } else {
+          this.hudAboutSection.setAttribute('hidden', '');
+        }
+        this.hudAboutToggle?.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+      });
+    }
   }
 
   private updateHotbar() {
@@ -602,16 +641,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHUD() {
-    const hud = document.querySelector('.hud') as HTMLDivElement;
-    const bricks = this.state.inventory['brick_ceb'] ?? 0;
-    const clay = this.state.inventory['clay'] ?? 0;
-    const water = this.state.inventory['water'] ?? 0;
-    const stone = this.state.inventory['stone'] ?? 0;
     const health = Math.round(this.state.player.health);
     const thirst = Math.round(this.state.player.thirst);
-    
-    hud.textContent = `ecology.click — Health: ${health} | Thirst: ${thirst} | Clay: ${clay} | Water: ${water} | Stone: ${stone} | Bricks: ${bricks}`;
-    
+
+    if (this.hudHealthValue) {
+      this.hudHealthValue.textContent = `${health}`;
+    }
+
+    if (this.hudThirstValue) {
+      this.hudThirstValue.textContent = `${thirst}`;
+    }
+
     // Update all UI elements
     this.updateAllUI();
   }
@@ -786,6 +826,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       const toggle = { button: buttonEl, element: targetEl, name: config.name };
+      buttonEl.textContent = config.name;
       buttonEl.setAttribute('aria-controls', targetEl.id);
       buttonEl.addEventListener('click', () => {
         toggle.element.classList.toggle('overlay-hidden');
@@ -799,8 +840,10 @@ export class GameScene extends Phaser.Scene {
 
   private updateOverlayToggleButton(toggle: { button: HTMLButtonElement; element: HTMLElement; name: string }) {
     const isHidden = toggle.element.classList.contains('overlay-hidden');
-    toggle.button.textContent = `${isHidden ? 'Show' : 'Hide'} ${toggle.name}`;
+    toggle.button.dataset.active = (!isHidden).toString();
     toggle.button.setAttribute('aria-pressed', (!isHidden).toString());
+    toggle.button.setAttribute('aria-expanded', (!isHidden).toString());
+    toggle.button.title = `${isHidden ? 'Show' : 'Hide'} ${toggle.name}`;
   }
 
   private setupInteractionModeToggle() {
