@@ -62,6 +62,7 @@ export class GameScene extends Phaser.Scene {
   private interactionMode: 'build' | 'move' = 'build';
   private movementPath: { x: number; y: number }[] = [];
   private movementAccum = 0;
+  private playerSprite?: Phaser.GameObjects.Container;
 
   constructor() {
     super('game');
@@ -536,17 +537,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   private redrawPlayer() {
-    // Remove old player sprite
-    this.children.list.filter(o => (o as any).isPlayer).forEach(o => o.destroy());
-    
-    // Draw player
-    const playerSprite = this.add.circle(
-      this.state.player.pos.x * this.state.gridSize + 16,
-      this.state.player.pos.y * this.state.gridSize + 16,
-      8,
-      0x00ff00
-    );
-    (playerSprite as any).isPlayer = true;
+    const x = this.state.player.pos.x * this.state.gridSize + this.state.gridSize / 2;
+    const y = this.state.player.pos.y * this.state.gridSize + this.state.gridSize / 2;
+
+    if (!this.playerSprite) {
+      const container = this.add.container(x, y);
+      container.setDepth(10);
+
+      const chassis = this.add.rectangle(0, 0, 24, 12, 0x3f9e58);
+      const cargoBed = this.add.rectangle(-8, -2, 14, 10, 0x4bbf6d);
+      const cabin = this.add.rectangle(8, -4, 10, 10, 0x2d7c3a);
+      const window = this.add.rectangle(9, -6, 6, 4, 0xe8ffe9);
+      const light = this.add.circle(14, 0, 2, 0xcdee8a);
+      const frontWheel = this.add.circle(-8, 6, 4, 0x111111);
+      const rearWheel = this.add.circle(8, 6, 4, 0x111111);
+
+      container.add([chassis, cargoBed, cabin, window, light, frontWheel, rearWheel]);
+
+      this.playerSprite = container;
+      (container as any).isPlayer = true;
+
+      this.cameras.main.startFollow(container, true, 0.2, 0.2);
+      this.cameras.main.setRoundPixels(true);
+      this.cameras.main.centerOn(x, y);
+    }
+
+    this.playerSprite!.setPosition(x, y);
   }
 
   private updateHUD() {
