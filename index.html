@@ -88,8 +88,16 @@
         .inventory-list,
         .event-log,
         .build-queue { height:auto; max-height:clamp(140px, 24vh, 200px); }
-        .overlay-toggle-group { align-items:stretch; }
-        .overlay-toggle-group .ui-button { width:100%; }
+        .overlay-toggle-group {
+          align-items:center;
+          flex-wrap:nowrap;
+          overflow-x:auto;
+          gap:6px;
+        }
+        .overlay-toggle-group .ui-button {
+          flex:1 0 auto;
+          white-space:nowrap;
+        }
         .event-log { order:4; }
         .build-queue { order:5; }
         .hotbar { bottom:12px; left:50%; transform:translateX(-50%); }
