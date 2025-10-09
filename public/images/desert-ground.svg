@@ -15,7 +15,9 @@
       <circle cx="44" cy="16" r="3" fill="#b7823d" opacity="0.32" />
     </pattern>
   </defs>
-  <rect width="256" height="256" fill="url(#duneRipples)" />
-  <path d="M0 92c24-8 48-6 72 4s48 10 72 2 48-6 72 4 48 10 72 2v152H0V92z" fill="#c69246" opacity="0.12" />
-  <path d="M0 176c18-6 36-6 54 2s36 8 54 2 36-6 54 2 36 8 54 2 36-6 54 2v72H0v-80z" fill="#a56d32" opacity="0.1" />
+  <g transform="translate(64 64) scale(0.5)">
+    <rect width="256" height="256" fill="url(#duneRipples)" />
+    <path d="M0 92c24-8 48-6 72 4s48 10 72 2 48-6 72 4 48 10 72 2v152H0V92z" fill="#c69246" opacity="0.12" />
+    <path d="M0 176c18-6 36-6 54 2s36 8 54 2 36-6 54 2 36 8 54 2 36-6 54 2v72H0v-80z" fill="#a56d32" opacity="0.1" />
+  </g>
 </svg>
