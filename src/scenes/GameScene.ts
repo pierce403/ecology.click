@@ -166,15 +166,10 @@ export class GameScene extends Phaser.Scene {
       this.worldToPixelCenterY(this.state.player.pos.y)
     );
 
-    this.groundLayer = this.add.tileSprite(
-      0,
-      0,
+    this.refreshGroundLayer(
       this.state.width * this.state.gridSize,
-      this.state.height * this.state.gridSize,
-      'desert-ground'
+      this.state.height * this.state.gridSize
     );
-    this.groundLayer.setOrigin(0, 0);
-    this.groundLayer.setDepth(-2);
 
     this.gridGraphics = this.add.graphics();
     this.gridGraphics.setDepth(-1);
@@ -751,7 +746,7 @@ export class GameScene extends Phaser.Scene {
     const widthPx = this.state.width * this.state.gridSize;
     const heightPx = this.state.height * this.state.gridSize;
 
-    this.updateGroundLayerSize(widthPx, heightPx);
+    this.refreshGroundLayer(widthPx, heightPx);
 
     this.gridGraphics.clear();
     this.gridGraphics.lineStyle(1, 0x28323a, 1);
@@ -767,12 +762,18 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private updateGroundLayerSize(widthPx: number, heightPx: number) {
-    if (!this.groundLayer) return;
-    this.groundLayer.setSize(widthPx, heightPx);
-    this.groundLayer.setDisplaySize(widthPx, heightPx);
-    this.groundLayer.setTileScale(1, 1);
-    this.groundLayer.setPosition(0, 0);
+  private refreshGroundLayer(widthPx: number, heightPx: number) {
+    if (this.groundLayer) {
+      this.groundLayer.destroy();
+    }
+
+    const ground = this.add.tileSprite(0, 0, widthPx, heightPx, 'desert-ground');
+    ground.setOrigin(0, 0);
+    ground.setDepth(-2);
+
+    ground.setTileScale(1, 1);
+
+    this.groundLayer = ground;
   }
 
   private generateChunk(chunkX: number, chunkY: number) {
