@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="sandGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#d7b77a" />
+      <stop offset="100%" stop-color="#c99a57" />
+    </linearGradient>
+    <pattern id="duneRipples" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="url(#sandGradient)" />
+      <path d="M0 12c12-6 24-6 36 0s24 6 36 0" fill="none" stroke="#d8c18f" stroke-width="3" stroke-linecap="round" opacity="0.45" />
+      <path d="M0 38c10-5 22-5 34 1s24 6 38-1" fill="none" stroke="#bb8746" stroke-width="2" stroke-linecap="round" opacity="0.35" />
+      <path d="M0 56c8-4 18-4 28 0s22 4 32 0" fill="none" stroke="#e6d1a5" stroke-width="2" stroke-linecap="round" opacity="0.3" />
+      <circle cx="18" cy="20" r="4" fill="#b7823d" opacity="0.32" />
+      <circle cx="50" cy="44" r="5" fill="#b7823d" opacity="0.28" />
+      <circle cx="12" cy="52" r="3" fill="#b7823d" opacity="0.26" />
+      <circle cx="44" cy="16" r="3" fill="#b7823d" opacity="0.32" />
+    </pattern>
+  </defs>
+  <rect width="256" height="256" fill="url(#duneRipples)" />
+  <path d="M0 92c24-8 48-6 72 4s48 10 72 2 48-6 72 4 48 10 72 2v152H0V92z" fill="#c69246" opacity="0.12" />
+  <path d="M0 176c18-6 36-6 54 2s36 8 54 2 36-6 54 2 36 8 54 2 36-6 54 2v72H0v-80z" fill="#a56d32" opacity="0.1" />
+</svg>
