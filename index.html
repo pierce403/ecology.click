@@ -54,6 +54,24 @@
       .inventory-item.item { background:#1a1a2a; border:1px solid #46a; }
       .inventory-name { font-size:12px; }
       .inventory-count { font-size:11px; color:#aaa; font-weight:bold; }
+      .tech-tree { position:fixed; top:96px; right:228px; width:260px; max-height:360px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:10px; }
+      .tech-tier { background:#0e161b; border:1px solid #1f2a33; border-radius:8px; padding:10px 12px; margin-bottom:10px; box-shadow:0 2px 6px #0006; }
+      .tech-tier:last-of-type { margin-bottom:0; }
+      .tech-tier-header { display:flex; flex-direction:column; gap:2px; margin-bottom:8px; }
+      .tech-tier-rank { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7bd; }
+      .tech-tier-title { font-size:16px; margin:0; color:#f0f4f6; }
+      .tech-tier-tagline { margin:0; font-size:12px; color:#9fb6c5; }
+      .tech-tier-section { margin-bottom:8px; }
+      .tech-tier-section:last-of-type { margin-bottom:0; }
+      .tech-tier-section-title { margin:0 0 4px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:#94d0ff; }
+      .tech-tier-list { margin:0; padding-left:18px; font-size:12px; color:#cfd8df; line-height:1.5; }
+      .tech-tier-list li { margin-bottom:2px; }
+      .tech-tier-list li:last-of-type { margin-bottom:0; }
+      .tech-tier-notes { margin-top:8px; border-top:1px solid #1f2a33; padding-top:8px; }
+      .tech-tier-note { margin:0 0 4px 0; font-size:12px; color:#cfd8df; }
+      .tech-tier-note:last-of-type { margin-bottom:0; }
+      .tech-tier-note-label { font-weight:600; color:#94d0ff; }
+      .tech-tier-note-text { color:#d8e2ea; }
       .slot-count { font-size:10px; color:#aaa; margin-top:2px; }
       .slot-label { font-size:12px; }
       .overlay-hidden { display:none !important; }
@@ -66,7 +84,7 @@
       #mode-toggle[data-mode='move'] { background:#1a3820aa; border-color:#3a6a46; }
       #mode-toggle[data-mode='build'] { background:#38201aaa; border-color:#6a463a; }
       @media (max-width: 900px) {
-        .buildables-list, .inventory-list { width: min(240px, 90vw); }
+        .buildables-list, .inventory-list, .tech-tree { width: min(260px, 90vw); }
         .event-log { width: min(280px, 90vw); height: 160px; }
         .build-queue { width: min(280px, 90vw); }
         .hotbar { gap:6px; padding:6px 10px; }
@@ -78,6 +96,7 @@
         #ui-overlay > .hud,
         #ui-overlay > .buildables-list,
         #ui-overlay > .inventory-list,
+        #ui-overlay > .tech-tree,
         #ui-overlay > .event-log,
         #ui-overlay > .build-queue,
         #ui-overlay > .overlay-toggle-group { position:static; width:min(480px, 94vw); max-width:94vw; transform:none; left:auto; right:auto; }
@@ -86,8 +105,9 @@
         .hud-links { justify-content:center; }
         .buildables-list,
         .inventory-list,
+        .tech-tree,
         .event-log,
-        .build-queue { height:auto; max-height:clamp(140px, 24vh, 200px); }
+        .build-queue { height:auto; max-height:clamp(140px, 24vh, 220px); }
         .overlay-toggle-group {
           align-items:center;
           flex-wrap:nowrap;
@@ -98,8 +118,9 @@
           flex:1 0 auto;
           white-space:nowrap;
         }
-        .event-log { order:4; }
-        .build-queue { order:5; }
+        .tech-tree { order:4; }
+        .event-log { order:5; }
+        .build-queue { order:6; }
         .hotbar { bottom:12px; left:50%; transform:translateX(-50%); }
         #mode-toggle { bottom:calc(12px + 64px + 12px); }
       }
@@ -129,12 +150,14 @@
       <div id="overlay-toggle-group" class="overlay-toggle-group">
         <button id="toggle-buildables" class="ui-button" type="button" aria-pressed="true" aria-controls="buildables-list">Buildables</button>
         <button id="toggle-inventory" class="ui-button" type="button" aria-pressed="true" aria-controls="inventory-list">Inventory</button>
+        <button id="toggle-tech-tree" class="ui-button" type="button" aria-pressed="true" aria-controls="tech-tree">Tech Tree</button>
         <button id="toggle-event-log" class="ui-button" type="button" aria-pressed="true" aria-controls="event-log">Event Log</button>
         <button id="toggle-build-queue" class="ui-button" type="button" aria-pressed="true" aria-controls="build-queue">Build Queue</button>
       </div>
       <div class="hotbar" id="hotbar"></div>
       <div class="event-log" id="event-log"></div>
       <div class="buildables-list" id="buildables-list"></div>
+      <div class="tech-tree" id="tech-tree"></div>
       <div class="build-queue" id="build-queue"></div>
       <div class="inventory-list" id="inventory-list"></div>
       <button id="mode-toggle" class="ui-button" type="button" data-mode="build" aria-pressed="false">Build Mode</button>

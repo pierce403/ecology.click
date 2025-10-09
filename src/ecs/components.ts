@@ -15,7 +15,7 @@ export type Player = {
 
 export type ResourceNode = {
   pos: Position;
-  type: string; // 'clay', 'water', 'stone'
+  type: string; // 'soil', 'sand', 'clay', 'wood', 'scrap_metal', 'water'
   amount: number;
   maxAmount: number;
 };
@@ -40,6 +40,12 @@ export type WorldState = {
   gridSize: number;
   width: number;
   height: number;
+  bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
   placed: PlacedEntity[];
   player: Player;
   resources: ResourceNode[];

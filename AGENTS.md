@@ -47,3 +47,7 @@ Use this document to orient code-generating agents.
 - **Code**: MIT.
 - **OSE blueprint-derived content**: include attributions (CC-BY-SA 4.0) in `docs/` and in-game blueprint viewer.
 
+## Notes for Future Agents
+- The world map now expands in every direction. `WorldState` includes a `bounds` object (min/max tile coordinates) so systems can convert between tile and pixel space without assuming `(0,0)` is fixed at the top-left. Use the helper methods in `GameScene` (e.g., `worldToPixelCenterX/Y`) or similar math when adding new renderables or input handlers.
+- After finishing a task, please add any helpful observations to this file **and** keep this reminder so the habit continues for future contributors.
+
