@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#1f1a16" />
-  <g stroke="#0f0b08" stroke-width="2" stroke-linejoin="round">
-    <path d="M12 30l20-14 20 14v20H12z" fill="#7b4a1f" />
-    <path d="M18 32h28v16H18z" fill="#9b5f28" />
-    <path d="M24 34h16v12H24z" fill="#c47a34" />
-    <path d="M12 30h40" fill="none" stroke="#d99c62" />
-    <path d="M32 16v14" fill="none" stroke="#d99c62" />
+  <g transform="translate(16 16) scale(0.5)">
+    <rect width="64" height="64" rx="12" fill="#1f1a16" />
+    <g stroke="#0f0b08" stroke-width="2" stroke-linejoin="round">
+      <path d="M12 30l20-14 20 14v20H12z" fill="#7b4a1f" />
+      <path d="M18 32h28v16H18z" fill="#9b5f28" />
+      <path d="M24 34h16v12H24z" fill="#c47a34" />
+      <path d="M12 30h40" fill="none" stroke="#d99c62" />
+      <path d="M32 16v14" fill="none" stroke="#d99c62" />
+    </g>
+    <circle cx="30" cy="42" r="2" fill="#f1d3a5" />
   </g>
-  <circle cx="30" cy="42" r="2" fill="#f1d3a5" />
 </svg>

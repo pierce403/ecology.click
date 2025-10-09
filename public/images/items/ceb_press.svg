@@ -1,12 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#1b1f27" />
-  <g stroke="#0f141a" stroke-width="2" stroke-linejoin="round">
-    <rect x="14" y="18" width="36" height="12" rx="4" fill="#3e5d88" />
-    <rect x="18" y="28" width="28" height="18" rx="4" fill="#4f7cb2" />
-    <path d="M22 36h20" stroke="#a6c4e5" stroke-linecap="round" />
-    <rect x="22" y="12" width="20" height="8" rx="3" fill="#2c3f59" />
-    <rect x="24" y="44" width="16" height="8" rx="3" fill="#f4843d" />
+  <g transform="translate(16 16) scale(0.5)">
+    <rect width="64" height="64" rx="12" fill="#1b1f27" />
+    <g stroke="#0f141a" stroke-width="2" stroke-linejoin="round">
+      <rect x="14" y="18" width="36" height="12" rx="4" fill="#3e5d88" />
+      <rect x="18" y="28" width="28" height="18" rx="4" fill="#4f7cb2" />
+      <path d="M22 36h20" stroke="#a6c4e5" stroke-linecap="round" />
+      <rect x="22" y="12" width="20" height="8" rx="3" fill="#2c3f59" />
+      <rect x="24" y="44" width="16" height="8" rx="3" fill="#f4843d" />
+    </g>
+    <circle cx="24" cy="24" r="2.4" fill="#91b2d8" />
+    <circle cx="40" cy="24" r="2.4" fill="#91b2d8" />
   </g>
-  <circle cx="24" cy="24" r="2.4" fill="#91b2d8" />
-  <circle cx="40" cy="24" r="2.4" fill="#91b2d8" />
 </svg>
