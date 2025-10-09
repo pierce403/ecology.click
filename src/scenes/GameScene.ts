@@ -5,6 +5,7 @@ import { hydraulicsSystem, craftingSystem } from '../ecs/systems';
 import { techTree } from '../data/techTree';
 
 type ResourceKind = 'soil' | 'sand' | 'clay' | 'wood' | 'scrap_metal' | 'water';
+type BuildableId = 'power_cube' | 'ceb_press' | 'water_well' | 'storage_shed';
 
 export class GameScene extends Phaser.Scene {
   state: WorldState = {
@@ -69,6 +70,7 @@ export class GameScene extends Phaser.Scene {
   private inventoryList!: HTMLDivElement;
   private techTreePanel?: HTMLDivElement;
   private gridGraphics?: Phaser.GameObjects.Graphics;
+  private groundLayer?: Phaser.GameObjects.TileSprite;
   private generatedChunks = new Set<string>();
   private ensuredSpawnResources = false;
   private readonly chunkSize = 16;
@@ -83,6 +85,36 @@ export class GameScene extends Phaser.Scene {
   private movementAccum = 0;
   private playerSprite?: Phaser.GameObjects.Container;
   private playerDirection: 'up' | 'down' | 'left' | 'right' = 'right';
+
+  private readonly resourceTexturePaths: Record<ResourceKind, string> = {
+    soil: '/images/resources/soil.svg',
+    sand: '/images/resources/sand.svg',
+    clay: '/images/resources/clay.svg',
+    wood: '/images/resources/wood.svg',
+    scrap_metal: '/images/resources/scrap_metal.svg',
+    water: '/images/resources/water.svg'
+  } as const;
+
+  private readonly itemTexturePaths: Record<BuildableId, string> = {
+    power_cube: '/images/items/power_cube.svg',
+    ceb_press: '/images/items/ceb_press.svg',
+    water_well: '/images/items/water_well.svg',
+    storage_shed: '/images/items/storage_shed.svg'
+  } as const;
+
+  private readonly inventoryIconPaths: Record<string, string> = {
+    soil: '/images/resources/soil.svg',
+    sand: '/images/resources/sand.svg',
+    clay: '/images/resources/clay.svg',
+    wood: '/images/resources/wood.svg',
+    scrap_metal: '/images/resources/scrap_metal.svg',
+    water: '/images/resources/water.svg',
+    brick_ceb: '/images/resources/brick_ceb.svg',
+    power_cube: '/images/items/power_cube.svg',
+    ceb_press: '/images/items/ceb_press.svg',
+    water_well: '/images/items/water_well.svg',
+    storage_shed: '/images/items/storage_shed.svg'
+  } as const;
 
   private worldToPixelX(tileX: number) {
     return (tileX - this.state.bounds.minX) * this.state.gridSize;
@@ -113,7 +145,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('tiles', '/tilesets/placeholder-tiles.png');
+    this.load.svg('desert-ground', '/images/desert-ground.svg', { width: 256, height: 256 });
+
+    const resourceEntries = Object.entries(this.resourceTexturePaths) as [ResourceKind, string][];
+    for (const [type, path] of resourceEntries) {
+      this.load.svg(`resource-${type}`, path, { width: 64, height: 64 });
+    }
+
+    const itemEntries = Object.entries(this.itemTexturePaths) as [BuildableId, string][];
+    for (const [id, path] of itemEntries) {
+      this.load.svg(`item-${id}`, path, { width: 64, height: 64 });
+    }
   }
 
   create() {
@@ -123,6 +165,16 @@ export class GameScene extends Phaser.Scene {
       this.worldToPixelCenterX(this.state.player.pos.x),
       this.worldToPixelCenterY(this.state.player.pos.y)
     );
+
+    this.groundLayer = this.add.tileSprite(
+      0,
+      0,
+      this.state.width * this.state.gridSize,
+      this.state.height * this.state.gridSize,
+      'desert-ground'
+    );
+    this.groundLayer.setOrigin(0, 0);
+    this.groundLayer.setDepth(-2);
 
     this.gridGraphics = this.add.graphics();
     this.gridGraphics.setDepth(-1);
@@ -177,9 +229,11 @@ export class GameScene extends Phaser.Scene {
     this.add.layer();
     this.redrawEntities();
     this.redrawPlayer();
-    
+
     // Add initial event
     this.addEvent('Welcome to the desert! Collect resources and survive.');
+
+    (window as any).gameScene = this;
   }
 
   private buildHotbar() {
@@ -231,7 +285,9 @@ export class GameScene extends Phaser.Scene {
     const mk = (item: any) => {
       const d = document.createElement('div');
       d.className = 'slot' + (this.state.selected === item.id ? ' active' : '');
+      const iconPath = this.getIconPath(item.id);
       d.innerHTML = `
+        <img class="slot-icon" src="${iconPath}" alt="${item.name} icon" />
         <div class="slot-label">${item.label}</div>
         <div class="slot-count">${this.state.inventory[item.id] || 0}</div>
       `;
@@ -344,18 +400,34 @@ export class GameScene extends Phaser.Scene {
       const canBuild = this.canBuildItem(item);
       const itemDiv = document.createElement('div');
       itemDiv.className = `buildable-item ${canBuild ? 'available' : 'unavailable'}`;
-      
+
       const requirements = Object.entries(item.requirements)
-        .map(([resource, amount]) => `${this.formatResourceLabel(resource)}: ${amount}`)
-        .join(', ');
-      
+        .map(([resource, amount]) => {
+          const label = this.formatResourceLabel(resource);
+          const iconPath = this.getIconPath(resource);
+          return `
+            <span class="buildable-req-item" title="${label}">
+              <img src="${iconPath}" alt="${label} icon" />
+              <span>${amount}</span>
+            </span>
+          `;
+        })
+        .join('');
+
+      const iconPath = this.getIconPath(item.id);
+
       itemDiv.innerHTML = `
-        <div class="buildable-name">${item.name}</div>
-        <div class="buildable-desc">${item.description}</div>
+        <div class="buildable-header">
+          <img class="buildable-icon" src="${iconPath}" alt="${item.name} icon" />
+          <div>
+            <div class="buildable-name">${item.name}</div>
+            <div class="buildable-desc">${item.description}</div>
+          </div>
+        </div>
         <div class="buildable-req">${requirements}</div>
         <div class="buildable-time">${item.buildTime}s</div>
       `;
-      
+
       if (canBuild) {
         itemDiv.onclick = () => this.startBuilding(item);
       }
@@ -514,11 +586,15 @@ export class GameScene extends Phaser.Scene {
       const itemDiv = document.createElement('div');
       const isBuilding = i === 0; // First item is being built
       itemDiv.className = `queue-item ${isBuilding ? 'building' : 'queued'}`;
-      
+
       const progress = ((item.totalTime - item.timeRemaining) / item.totalTime) * 100;
-      
+      const iconPath = this.getIconPath(item.id);
+
       itemDiv.innerHTML = `
-        <div class="queue-name">${isBuilding ? '🔨 ' : '⏳ '}${item.name}</div>
+        <div class="queue-header">
+          <img class="queue-icon" src="${iconPath}" alt="${item.name} icon" />
+          <div class="queue-name">${isBuilding ? '🔨 ' : '⏳ '}${item.name}</div>
+        </div>
         <div class="queue-progress">
           <div class="progress-bar">
             <div class="progress-fill" style="width: ${progress}%"></div>
@@ -559,8 +635,12 @@ export class GameScene extends Phaser.Scene {
       if (count > 0) {
         const itemDiv = document.createElement('div');
         itemDiv.className = `inventory-item ${item.type}`;
+        const iconPath = this.getIconPath(item.id);
         itemDiv.innerHTML = `
-          <div class="inventory-name">${item.name}</div>
+          <div class="inventory-info">
+            <img class="inventory-icon" src="${iconPath}" alt="${item.name} icon" />
+            <div class="inventory-name">${item.name}</div>
+          </div>
           <div class="inventory-count">${count}</div>
         `;
         this.inventoryList.appendChild(itemDiv);
@@ -671,6 +751,8 @@ export class GameScene extends Phaser.Scene {
     const widthPx = this.state.width * this.state.gridSize;
     const heightPx = this.state.height * this.state.gridSize;
 
+    this.updateGroundLayerSize(widthPx, heightPx);
+
     this.gridGraphics.clear();
     this.gridGraphics.lineStyle(1, 0x28323a, 1);
 
@@ -683,6 +765,14 @@ export class GameScene extends Phaser.Scene {
       const py = y * this.state.gridSize;
       this.gridGraphics.lineBetween(0, py, widthPx, py);
     }
+  }
+
+  private updateGroundLayerSize(widthPx: number, heightPx: number) {
+    if (!this.groundLayer) return;
+    this.groundLayer.setSize(widthPx, heightPx);
+    this.groundLayer.setDisplaySize(widthPx, heightPx);
+    this.groundLayer.setTileScale(1, 1);
+    this.groundLayer.setPosition(0, 0);
   }
 
   private generateChunk(chunkX: number, chunkY: number) {
@@ -798,46 +888,61 @@ export class GameScene extends Phaser.Scene {
 
     // Draw placed entities
     for (const e of this.state.placed) {
-      const colors = {
-        power_cube: 0x4a6,      // Green
-        ceb_press: 0x46a,       // Blue  
-        water_well: 0x69f,      // Light blue
-        storage_shed: 0x8a6     // Orange
-      };
-      const color = colors[e.id as keyof typeof colors] || 0x666;
+      const textureKey = this.getItemTextureKey(e.id);
+      if (!textureKey) continue;
 
-      const entitySprite = this.add.circle(
+      const entitySprite = this.add.image(
         this.worldToPixelCenterX(e.pos.x),
         this.worldToPixelCenterY(e.pos.y),
-        12,
-        color
+        textureKey
       );
+      entitySprite.setDepth(1);
+      entitySprite.setOrigin(0.5, 0.5);
+      entitySprite.setScale(0.8);
+      entitySprite.setData('tileX', e.pos.x);
+      entitySprite.setData('tileY', e.pos.y);
+      entitySprite.setTint(e.powered ? 0xa8d0ff : 0xffffff);
       (entitySprite as any).isEntity = true;
     }
 
     // Draw resources
     for (const resource of this.state.resources) {
       if (resource.amount > 0) {
-        const colors = {
-          soil: 0x8B5A2B,
-          sand: 0xC2B280,
-          clay: 0xA0522D,
-          wood: 0x4F7942,
-          scrap_metal: 0x7A8A99,
-          water: 0x4169E1
-        };
-        const color = colors[resource.type as keyof typeof colors] || 0xFFFFFF;
-        const size = Math.max(4, (resource.amount / resource.maxAmount) * 12);
+        const textureKey = this.getResourceTextureKey(resource.type);
+        if (!textureKey) continue;
 
-        const resourceSprite = this.add.circle(
+        const resourceSprite = this.add.image(
           this.worldToPixelCenterX(resource.pos.x),
           this.worldToPixelCenterY(resource.pos.y),
-          size,
-          color
+          textureKey
         );
+        const ratio = Phaser.Math.Clamp(resource.amount / resource.maxAmount, 0.25, 1);
+        resourceSprite.setScale(0.6 + ratio * 0.5);
+        resourceSprite.setDepth(0);
+        resourceSprite.setOrigin(0.5, 0.5);
+        resourceSprite.setData('tileX', resource.pos.x);
+        resourceSprite.setData('tileY', resource.pos.y);
         (resourceSprite as any).isResource = true;
       }
     }
+  }
+
+  private getItemTextureKey(id: string) {
+    if (id in this.itemTexturePaths) {
+      return `item-${id as BuildableId}`;
+    }
+    return undefined;
+  }
+
+  private getResourceTextureKey(id: string) {
+    if (id in this.resourceTexturePaths) {
+      return `resource-${id as ResourceKind}`;
+    }
+    return undefined;
+  }
+
+  private getIconPath(id: string) {
+    return this.inventoryIconPaths[id] ?? '/images/resources/soil.svg';
   }
 
   private movePlayer(dx: number, dy: number) {
@@ -993,21 +1098,12 @@ export class GameScene extends Phaser.Scene {
     // reflect powered state by tinting
     for (const s of this.children.list) {
       if ((s as any).isEntity) {
-        const spr = s as Phaser.GameObjects.Circle;
-        const gx = Math.floor(spr.x / this.state.gridSize);
-        const gy = Math.floor(spr.y / this.state.gridSize);
-        const ent = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
-        if (ent) {
-          // For circles, we change the fill color instead of tinting
-          const baseColors = {
-            power_cube: 0x4a6,
-            ceb_press: 0x46a,
-            water_well: 0x69f,
-            storage_shed: 0x8a6
-          };
-          const baseColor = baseColors[ent.id as keyof typeof baseColors] || 0x666;
-          spr.setFillStyle(ent.powered ? 0xa8d0ff : baseColor);
-        }
+        const sprite = s as Phaser.GameObjects.Image;
+        const tileX = sprite.getData('tileX');
+        const tileY = sprite.getData('tileY');
+        if (typeof tileX !== 'number' || typeof tileY !== 'number') continue;
+        const ent = this.state.placed.find(e => e.pos.x === tileX && e.pos.y === tileY);
+        sprite.setTint(ent && ent.powered ? 0xa8d0ff : 0xffffff);
       }
     }
   }
