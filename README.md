@@ -6,7 +6,7 @@ A static, browser-first factory and settlement game inspired by Open Source Ecol
 
 Click a resource deposit to drive there and gather continuously. Use WASD or arrow keys to move; hold Space to gather and press E to drink. Touch controls provide the same actions on phones.
 
-Place the supplied Workbench first. Click a blueprint to assemble it, then place the finished machine from the quickbar. Keys 1–9 select quickbar slots; B switches between exploration and placement; Esc cancels; G shows the grid; P pauses; the wheel zooms. Click an installed machine to inspect its recipe, batch progress and operating status. Shift-click or use the inspector to pack it up, recovering the machine and any reserved inputs.
+Place the supplied Workbench first. Click a blueprint to assemble it; it stays selected for placement when the batch completes. The quickbar shows assembly time and ready machines. A visible placement message explains blocked tiles and missing materials. Keys 1–9 select quickbar slots; B switches between exploration and placement; Esc cancels; G shows the grid; P pauses; the wheel zooms. Click an installed machine to inspect its recipe, batch progress and operating status. Shift-click or use the inspector to pack it up, recovering the machine and any reserved inputs.
 
 The seven stages preserve the original progression:
 

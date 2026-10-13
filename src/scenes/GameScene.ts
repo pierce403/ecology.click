@@ -4,6 +4,7 @@ import { hydraulicsSystem, craftingSystem, progressionSystem, getObjective, getM
 import { machineDefinitions, createBuildables } from '../data/machines';
 import { techTree } from '../data/techTree';
 import { load, save } from '../utils/save';
+import { getPlacementError, getAssemblyError } from '../utils/construction';
 import { findPath } from '../utils/pathfinding';
 
 type ResourceKind = 'soil' | 'sand' | 'clay' | 'wood' | 'scrap_metal' | 'water';
@@ -49,6 +50,7 @@ export class GameScene extends Phaser.Scene {
   private inspectorEntity?: PlacedEntity;
   private htmlCache = new Map<string, string>();
   private log: string[] = [];
+  private feedbackUntil = 0;
   private cleanup: (() => void)[] = [];
 
   constructor() { super('game'); }
@@ -109,12 +111,13 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - Math.sign(dy) * 0.1, 0.55, 2));
     });
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.paused) return;
+      if (this.paused) { this.showFeedback('Resume the game before placing or moving.'); return; }
       const world = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       const x = this.pixelToTileX(world.x), y = this.pixelToTileY(world.y);
       this.ensureSurroundingChunks(x, y);
       const existing = this.state.placed.find(entity => entity.pos.x === x && entity.pos.y === y);
       if (existing && !pointer.rightButtonDown()) {
+        if (this.interactionMode === 'build' && !this.keys.SHIFT?.isDown) { this.placeMachine(x, y); return; }
         if (this.keys.SHIFT?.isDown) this.removeMachine(existing);
         else { this.inspectorEntity = existing; document.getElementById('machine-inspector')?.classList.remove('overlay-hidden'); this.updateInspector(); }
         return;
@@ -163,6 +166,7 @@ export class GameScene extends Phaser.Scene {
   }
   private setMode(mode: 'move' | 'build') {
     this.interactionMode = mode; this.gatherTarget = undefined;
+    if (mode === 'build') { this.movementPath = []; this.movementAccum = 0; }
     const button = document.getElementById('mode-toggle');
     if (button) { button.dataset.mode = mode; button.textContent = mode === 'move' ? 'Move · B' : 'Place · B'; button.setAttribute('aria-pressed', `${mode === 'build'}`); }
     this.updateHotbar();
@@ -172,16 +176,29 @@ export class GameScene extends Phaser.Scene {
     if (button) { button.textContent = this.paused ? 'Resume · P' : 'Pause · P'; button.setAttribute('aria-pressed', `${this.paused}`); }
   }
   private selectBlueprint(id: string) {
+    if (!machineDefinitions[id]) return;
     this.state.selected = id;
-    if ((this.state.inventory[id] ?? 0) > 0) this.setMode('build');
-    else { const item = this.state.buildables.find(item => item.id === id); if (item) this.startBuilding(item); }
+    if ((this.state.inventory[id] ?? 0) > 0) {
+      this.setMode('build');
+      this.showFeedback(`Place ${machineDefinitions[id].name} on clear ground.`);
+    } else if (this.state.buildQueue.some(item => item.id === id)) {
+      this.setMode('build');
+      this.showFeedback(getPlacementError(this.state, this.state.player.pos.x, this.state.player.pos.y) ?? 'Assembly in progress.');
+    } else {
+      const item = this.state.buildables.find(item => item.id === id);
+      if (item) this.startBuilding(item);
+    }
     this.updateHUD();
   }
-  private canBuildItem(item: BuildableItem) { return item.unlocked && Object.entries(item.requirements).every(([id, amount]) => (this.state.inventory[id] ?? 0) + 1e-8 >= amount); }
+  private canBuildItem(item: BuildableItem) { return getAssemblyError(this.state, item.id) === null; }
   private startBuilding(item: BuildableItem) {
-    if (!item || !this.canBuildItem(item)) { this.addEvent('Gather the missing materials before assembling this blueprint.'); return; }
+    if (!item) return;
+    const error = getAssemblyError(this.state, item.id);
+    if (error) { this.showFeedback(error); this.addEvent(error); return; }
     for (const [id, amount] of Object.entries(item.requirements)) this.state.inventory[id] -= amount;
     this.state.selected = item.id; this.state.buildQueue.push({ id: item.id, name: item.name, totalTime: item.buildTime, timeRemaining: item.buildTime });
+    this.setMode('build');
+    this.showFeedback(`${item.name} assembling. It will be selected for placement when ready.`);
     this.addEvent(`${item.name} queued for assembly.`); this.updateHUD();
   }
   cancelBuild(index: number) {
@@ -190,19 +207,16 @@ export class GameScene extends Phaser.Scene {
     this.state.buildQueue.splice(index, 1); this.addEvent(`${queued.name} cancelled; materials returned.`); this.updateHUD();
   }
   private placementValid(x: number, y: number) {
-    if (!machineDefinitions[this.state.selected]) return false;
-    if ((this.state.inventory[this.state.selected] ?? 0) < 1 || this.state.placed.some(entity => entity.pos.x === x && entity.pos.y === y)) return false;
-    if (this.state.selected !== 'hydraulic_hose' && this.state.player.pos.x === x && this.state.player.pos.y === y) return false;
-    const node = this.findResourceAt(x, y);
-    if (machineDefinitions[this.state.selected]?.resource) return node?.type === machineDefinitions[this.state.selected].resource!.type;
-    return !node || ['soil', 'sand', 'clay'].includes(node.type);
+    return getPlacementError(this.state, x, y) === null;
   }
   private placeMachine(x: number, y: number) {
-    if (!this.placementValid(x, y)) { this.addEvent(this.state.selected === 'scrap_drill' ? 'Place the drill directly on a scrap deposit.' : 'Choose open ground and an assembled machine.'); return; }
+    const error = getPlacementError(this.state, x, y);
+    if (error) { this.showFeedback(error); this.addEvent(error); return; }
     this.state.placed.push({ id: this.state.selected, pos: { x, y }, powered: false, progress: 0 }); this.state.inventory[this.state.selected] -= 1;
     this.movementPath = []; this.gatherTarget = undefined; this.entitiesDirty = true;
     progressionSystem(this.state, message => this.addEvent(message)); hydraulicsSystem(this.state);
     this.addEvent(`${machineDefinitions[this.state.selected].name} placed.`);
+    this.showFeedback(`${machineDefinitions[this.state.selected].name} installed.`);
     if ((this.state.inventory[this.state.selected] ?? 0) === 0) this.setMode('move'); this.updateHUD();
   }
   private removeMachine(entity: PlacedEntity) {
@@ -231,7 +245,9 @@ export class GameScene extends Phaser.Scene {
     const items = this.state.buildables.filter(item => item.unlocked || (this.state.inventory[item.id] ?? 0) > 0);
     this.writeHTML('hotbar', items.map((item, index) => {
       const count = Math.floor(this.state.inventory[item.id] ?? 0), available = count > 0;
-      return `<button type="button" class="slot${this.state.selected === item.id && this.interactionMode === 'build' ? ' active' : ''}${available ? '' : ' blueprint'}" data-machine="${item.id}" title="${escapeHTML(item.name)} · ${available ? `${count} ready · click to place` : 'click to assemble'}"><span class="slot-key">${index < 9 ? index + 1 : ''}</span><img class="slot-icon" src="${this.getIconPath(item.id)}" alt=""/><span class="slot-label">${escapeHTML(item.name.replace(/ \(.+\)/, ''))}</span><span class="slot-count">${available ? count : '+'}</span></button>`;
+      const queueIndex = this.state.buildQueue.findIndex(queued => queued.id === item.id);
+      const wait = queueIndex < 0 ? 0 : Math.ceil(this.state.buildQueue.slice(0, queueIndex + 1).reduce((total, queued) => total + queued.timeRemaining, 0));
+      return `<button type="button" class="slot${this.state.selected === item.id && this.interactionMode === 'build' ? ' active' : ''}${available ? '' : ' blueprint'}" data-machine="${item.id}" title="${escapeHTML(item.name)} · ${available ? `${count} ready · click to place` : wait ? `assembling · ${wait}s until ready` : 'click to assemble'}"><span class="slot-key">${index < 9 ? index + 1 : ''}</span><img class="slot-icon" src="${this.getIconPath(item.id)}" alt=""/><span class="slot-label">${escapeHTML(item.name.replace(/ \(.+\)/, ''))}</span><span class="slot-count">${available ? count : wait ? wait + 's' : '+'}</span></button>`;
     }).join(''));
   }
   private updateBuildablesList() {
@@ -277,6 +293,12 @@ export class GameScene extends Phaser.Scene {
     const working = this.state.placed.filter(entity => entity.status === 'working').length;
     this.setText('production-summary', `${working}/${this.state.placed.filter(entity => entity.id !== 'hydraulic_hose').length} running · ${this.quantity(this.state.inventory.brick_ceb ?? 0)} earth bricks`);
     this.updateHotbar(); this.updateBuildablesList(); this.updateInventoryList(); this.updateBuildQueue(); this.renderTechTree(); this.updateInspector();
+  }
+  private showFeedback(message: string) {
+    this.setText('construction-message', message);
+    const element = document.getElementById('construction-message');
+    if (element) { element.hidden = false; element.dataset.blocked = 'false'; }
+    this.feedbackUntil = this.time.now + 6500;
   }
   private addEvent(message: string) {
     this.log.push(message); if (this.log.length > 30) this.log.shift();
@@ -399,9 +421,16 @@ export class GameScene extends Phaser.Scene {
       const target = this.gatherTarget ?? this.movementPath[this.movementPath.length - 1];
       this.destinationGraphics.lineStyle(2, this.gatherTarget ? 0xe4b55d : 0xaad35b, 0.9).strokeCircle(this.worldToPixelCenterX(target.x), this.worldToPixelCenterY(target.y), 18);
     }
-    if (this.interactionMode !== 'build' || this.paused) return;
+    if (this.interactionMode !== 'build' || this.paused) {
+      if (this.time.now > this.feedbackUntil) { const message = document.getElementById('construction-message'); if (message) message.hidden = true; }
+      return;
+    }
     const pointer = this.input.activePointer, world = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
     const x = this.pixelToTileX(world.x), y = this.pixelToTileY(world.y), valid = this.placementValid(x, y), px = this.worldToPixelCenterX(x), py = this.worldToPixelCenterY(y);
+    const reason = getPlacementError(this.state, x, y);
+    this.setText('construction-message', reason ?? `Click to place ${machineDefinitions[this.state.selected]?.name ?? 'machine'}.`);
+    const feedback = document.getElementById('construction-message');
+    if (feedback) { feedback.hidden = false; feedback.dataset.blocked = `${!!reason}`; }
     this.ghostSprite.setTexture(`item-${this.state.selected}`).setDisplaySize(46, 46).setPosition(px, py).setVisible(true).setTint(valid ? 0xffffff : 0xff8675);
     this.ghostGraphics.lineStyle(2, valid ? 0xaad35b : 0xe57053, 0.95).strokeRect(px - 23, py - 23, 46, 46);
     this.ghostGraphics.fillStyle(valid ? 0xaad35b : 0xe57053, 0.12).fillRect(px - 23, py - 23, 46, 46);
@@ -443,7 +472,10 @@ export class GameScene extends Phaser.Scene {
     while (remaining > 0 && this.state.buildQueue.length) {
       const item = this.state.buildQueue[0], step = Math.min(item.timeRemaining, remaining); item.timeRemaining -= step; remaining -= step;
       if (item.timeRemaining > 0) break;
-      this.state.inventory[item.id] = (this.state.inventory[item.id] ?? 0) + 1; this.state.buildQueue.shift(); this.addEvent(`${item.name} assembled. Select it in the hotbar to place.`);
+      this.state.inventory[item.id] = (this.state.inventory[item.id] ?? 0) + 1; this.state.buildQueue.shift(); this.addEvent(`${item.name} assembled.`);
+      this.showFeedback(this.state.selected === item.id && this.interactionMode === 'build'
+        ? `${item.name} ready. Click clear ground to place.`
+        : `${item.name} ready in the quickbar. Select it to place.`);
     }
   }
   private updateSurvival(dt: number) {

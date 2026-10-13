@@ -286,3 +286,7 @@ button:active { filter: brightness(1.2); }
 
 .inspector-actions { display:flex; gap:8px; align-items:center; }
 .inspector-close { background:transparent; border:1px solid var(--border); padding:8px 11px; color:var(--muted); font-size:11px; margin-top:10px; }
+
+.construction-message { position:absolute; bottom:112px; left:50%; transform:translateX(-50%); width:max-content; max-width:min(480px,calc(100vw - 36px)); padding:11px 15px; background:#22281ff5; color:#e4dfbd; border:1px solid var(--amber); border-left:3px solid var(--amber); box-shadow:0 4px 18px #111b0c99; font:12px/1.5 var(--mono); z-index:15; pointer-events:none !important; }
+.construction-message[data-blocked='true'] { border-color:#c58b57; color:#edc8a2; }
+@media (pointer:coarse), (max-width:640px) { .construction-message { bottom:240px; font-size:11px; } }
