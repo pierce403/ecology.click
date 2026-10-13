@@ -1,0 +1,23 @@
+{
+  "id": "life_trac",
+  "name": "LifeTrac",
+  "description": "An open-source utility tractor. Triples hand-gathering batch size; prepares the metal fabrication tier.",
+  "tier": 4,
+  "buildTime": 10,
+  "build": {
+    "parts": {
+      "steel_plate": 8,
+      "wheel_unit": 2,
+      "hydraulic_pack": 2,
+      "fastener_pack": 6
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {},
+    "workTime": 4
+  }
+}

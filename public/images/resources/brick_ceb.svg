@@ -1,18 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g transform="translate(16 16) scale(0.5)">
-    <rect width="64" height="64" rx="10" fill="#362117" />
-    <g stroke="#2a160f" stroke-width="2" stroke-linejoin="round">
-      <path d="M14 26l22-8 16 8-22 8z" fill="#9a5332" />
-      <path d="M14 38l22-8 16 8-22 8z" fill="#b6633b" />
-      <path d="M14 50l22-8 16 8-22 8z" fill="#ce7848" />
-    </g>
-    <g fill="#f4c49b" opacity="0.45">
-      <circle cx="30" cy="24" r="2" />
-      <circle cx="42" cy="30" r="1.8" />
-      <circle cx="28" cy="36" r="2" />
-      <circle cx="40" cy="42" r="1.8" />
-      <circle cx="26" cy="48" r="2" />
-      <circle cx="38" cy="54" r="1.6" />
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="33" cy="49" rx="23" ry="8" fill="#20301d" opacity=".3"/>
+<g stroke="#6a6346" stroke-width="1.2" stroke-linejoin="round">
+<path d="M9 40l17-9 27 6-17 12z" fill="#ceb184"/><path d="M9 40v10l27 8V49z" fill="#a08761"/><path d="M36 49l17-12v10L36 58z" fill="#7b7351"/>
+<path d="M11 27l16-9 26 8-16 12z" fill="#d6ba8f"/><path d="M11 27v11l26 8v-8z" fill="#b2986d"/><path d="M37 38l16-12v11L37 46z" fill="#8e805a"/>
+</g><path d="M16 28l17 5m9-4 5-3m-31 17 17 5" fill="none" stroke="#f0d4a6" opacity=".7" stroke-width="1.2"/>
+<g fill="#8a7956"><circle cx="20" cy="33" r="1"/><circle cx="31" cy="36" r="1"/><circle cx="19" cy="46" r="1"/><circle cx="45" cy="35" r="1"/></g>
 </svg>

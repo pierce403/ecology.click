@@ -1,29 +1,30 @@
 {
   "id": "ceb_press",
-  "name": "CEB Press (The Liberator)",
+  "name": "CEB Press",
+  "description": "The Liberator presses prepared soil into structural earth bricks. Requires 2,000 PSI.",
+  "tier": 3,
+  "buildTime": 8,
   "build": {
     "parts": {
-      "steel_plate": 40,
-      "angle_iron": 12,
-      "bolts": 30,
-      "hydraulic_cylinder": 1,
-      "control_box": 1
+      "steel_plate": 6,
+      "fastener_pack": 4,
+      "hydraulic_pack": 2
     }
   },
   "power": {
     "kind": "hydraulic",
     "requires": "power_cube",
-    "flow_gpm": 20,
-    "pressure_psi": 2300
+    "flow_gpm": 8,
+    "pressure_psi": 2000
   },
   "operate": {
     "inputs": {
-      "soil": 1,
-      "water": 0.05
+      "prepared_soil": 2
     },
     "outputs": {
-      "brick_ceb": 1
-    }
+      "brick_ceb": 2
+    },
+    "workTime": 3
   },
   "quality": {
     "clay_pct": [
@@ -35,5 +36,6 @@
       0.12
     ],
     "min_pressure_psi": 2000
-  }
+  },
+  "outputLimit": 100
 }

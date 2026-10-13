@@ -1,0 +1,26 @@
+{
+  "id": "workbench",
+  "name": "Workbench",
+  "description": "Hand-operated tooling: salvage steel into fastener packs.",
+  "tier": 0,
+  "buildTime": 3,
+  "build": {
+    "parts": {
+      "wood": 6,
+      "scrap_metal": 4
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {
+      "scrap_metal": 2
+    },
+    "outputs": {
+      "fastener_pack": 3
+    },
+    "workTime": 4
+  },
+  "outputLimit": 18
+}

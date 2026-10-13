@@ -1,10 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g transform="translate(16 16) scale(0.5)">
-    <rect width="64" height="64" rx="10" fill="#3a2514" />
-    <path d="M10 44c4-10 12-16 22-16s18 6 22 16H10z" fill="#5c3b22" />
-    <path d="M14 44c3-6 9-10 18-10s15 4 18 10H14z" fill="#6b4526" />
-    <circle cx="22" cy="36" r="2.5" fill="#2b1a0f" opacity="0.4" />
-    <circle cx="34" cy="32" r="1.8" fill="#2b1a0f" opacity="0.4" />
-    <circle cx="40" cy="38" r="1.6" fill="#2b1a0f" opacity="0.35" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="32" cy="48" rx="24" ry="9" fill="#19271c" opacity=".25"/>
+<path d="M6 44l8-15 10-5 8-9 13 5 12 20-9 11-26 3z" fill="#70593b" stroke="#443e29" stroke-width="1.5"/>
+<path d="M14 35l10-8 9-8 12 6 4 11-15 7z" fill="#947b50"/><path d="M20 39l9-6 11 2 7 10-18 3z" fill="#7e6944"/>
+<path d="M14 34l9-6m9-8 11 6m-14 7 8 1m-20 11 9 2" stroke="#c0a36c" stroke-width="1.5" opacity=".6"/>
+<g fill="#494d32"><circle cx="19" cy="45" r="2"/><circle cx="43" cy="42" r="2.3"/><circle cx="34" cy="27" r="1.5"/><circle cx="49" cy="36" r="1.5"/></g>
 </svg>

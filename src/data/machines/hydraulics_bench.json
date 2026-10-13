@@ -1,0 +1,27 @@
+{
+  "id": "hydraulics_bench",
+  "name": "Hydraulics Bench",
+  "description": "Assembles pumps, fittings and cylinder packs from steel and fasteners.",
+  "tier": 2,
+  "buildTime": 5,
+  "build": {
+    "parts": {
+      "steel_plate": 4,
+      "fastener_pack": 3
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {
+      "steel_plate": 3,
+      "fastener_pack": 2
+    },
+    "outputs": {
+      "hydraulic_pack": 1
+    },
+    "workTime": 7
+  },
+  "outputLimit": 8
+}

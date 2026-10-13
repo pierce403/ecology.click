@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="34" cy="51" rx="27" ry="9" fill="#17221b" opacity=".33"/><g stroke="#26352d" stroke-width="1.4" stroke-linejoin="round">
+<path d="M10 28h43v24H10z" fill="#b6a17a"/><path d="M10 32h43m-43 7h43m-43 7h43m-35-14v7m14-7v7m-23 0v7m15-7v7m12-7v7m-24 0v6m14-6v6" stroke="#847e59" stroke-width="1"/>
+<path d="M5 28l24-19 29 17v7H5z" fill="#445b3d"/><path d="M5 28l24-19 29 17-25 4z" fill="url(#olive)"/><path d="M29 9l4 21" stroke="#bcc399" stroke-width="1.5"/>
+<path d="M11 26l19-13 21 12m-32 2 12-10 13 9" stroke="#a9b287" stroke-width="1" opacity=".55"/>
+<rect x="17" y="35" width="12" height="19" rx="1" fill="#66774e"/><path d="M19 36v16m4-16v16m4-16v16" stroke="#8d9b65" stroke-width="1"/><circle cx="25" cy="45" r="1" fill="#ded1a1"/>
+<rect x="35" y="35" width="12" height="10" fill="#405f55"/><path d="M36 40h10m-5-4v8" stroke="#acd2bb" stroke-width="1"/><path d="M34 46h14v3H34z" fill="#72834a"/>
+<path d="M48 13h5V5h-7v9" fill="#989c7a"/><path d="M44 5h11v3H44z" fill="#b4bda0"/>
+</g>
+</svg>

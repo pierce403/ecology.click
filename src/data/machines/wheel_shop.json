@@ -1,0 +1,28 @@
+{
+  "id": "wheel_shop",
+  "name": "Wheel Shop",
+  "description": "Fabricates steel hubs and hardwood utility wheels for the first LifeTrac.",
+  "tier": 4,
+  "buildTime": 7,
+  "build": {
+    "parts": {
+      "steel_plate": 6,
+      "fastener_pack": 4
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {
+      "steel_plate": 3,
+      "wood": 3,
+      "fastener_pack": 2
+    },
+    "outputs": {
+      "wheel_unit": 1
+    },
+    "workTime": 7
+  },
+  "outputLimit": 4
+}

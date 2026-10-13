@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="34" cy="51" rx="27" ry="9" fill="#17221b" opacity=".33"/><g stroke="#26352d" stroke-width="1.4" stroke-linejoin="round">
+<path d="M12 25h41v25H12z" fill="#785443"/><path d="M13 45h40v10H13z" fill="#414938"/>
+<path d="M9 25l10-13h25l11 13z" fill="#c19368"/><path d="M19 12h25v13H19z" fill="#a56f4f"/>
+<path d="M13 29h38m-38 6h38m-38 6h38m-29-15v3m14-3v3m-23 0v6m13-6v6m13-6v6m-22 0v6m14-6v6" stroke="#503f32" stroke-width="1"/>
+<path d="M23 50V35a9 9 0 0 1 18 0v15z" fill="#293b30"/><path d="M26 49V36a6 6 0 0 1 12 0v13z" fill="#623a2b"/>
+<path d="M29 46c-5-6 2-7 1-12 4 4 1 5 4 6 0-3 2-3 2-5 4 5 3 11-7 11z" fill="#e8af58" stroke="none"/><path d="M30 45c-1-3 2-3 3-6 2 3 3 6-3 6z" fill="#f5d594" stroke="none"/>
+<rect x="36" y="5" width="9" height="12" fill="#626d58"/><path d="M35 5h11v3H35z" fill="#8b997d"/>
+<rect x="9" y="47" width="10" height="6" fill="#a5a27a"/><path d="M9 50h10m-5-3v6" stroke="#73795b" stroke-width="1"/>
+</g>
+</svg>

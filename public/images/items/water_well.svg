@@ -1,14 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g transform="translate(16 16) scale(0.5)">
-    <rect width="64" height="64" rx="12" fill="#1a252d" />
-    <g stroke="#101921" stroke-width="2" stroke-linejoin="round">
-      <rect x="14" y="16" width="8" height="36" rx="3" fill="#835634" />
-      <rect x="42" y="16" width="8" height="36" rx="3" fill="#835634" />
-      <rect x="18" y="16" width="28" height="6" rx="3" fill="#ab7040" />
-      <rect x="20" y="28" width="24" height="16" rx="6" fill="#2e4859" />
-      <rect x="24" y="32" width="16" height="12" rx="5" fill="#4fa9d8" />
-      <circle cx="32" cy="20" r="4" fill="#d9e3ea" />
-    </g>
-    <path d="M32 18v12" stroke="#d9e3ea" stroke-width="2" stroke-linecap="round" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="34" cy="51" rx="27" ry="9" fill="#17221b" opacity=".33"/><g stroke="#26352d" stroke-width="1.4" stroke-linejoin="round">
+<ellipse cx="31" cy="42" rx="23" ry="14" fill="#465447"/><ellipse cx="31" cy="37" rx="21" ry="13" fill="#9aa18a"/><ellipse cx="31" cy="36" rx="15" ry="9" fill="#223e3d"/><ellipse cx="31" cy="37" rx="12" ry="6" fill="url(#water)"/>
+<path d="M12 35v6m7-11v6m11-10v5m12-3v5m8 3v6m-7 5v5m-11-4v5m-12-7v5" stroke="#5d6b56" stroke-width="2"/>
+<path d="M13 12h6v31h-6zM45 12h6v31h-6z" fill="url(#copper)"/><rect x="12" y="10" width="40" height="7" rx="1" fill="url(#olive)"/>
+<rect x="29" y="13" width="6" height="15" rx="2" fill="#98a99d"/><circle cx="32" cy="18" r="5" fill="#5b786c"/><circle cx="32" cy="18" r="2" fill="#b8c4a6"/>
+<path d="M32 23v15" stroke="#b9b496" stroke-width="1.4"/><path d="M47 24h8v13h-5" stroke="#b0b99c" stroke-width="3" fill="none"/>
+<path d="M28 35h8v9h-8z" fill="#799291"/><ellipse cx="32" cy="35" rx="4" ry="2" fill="#a8babb"/>
+</g><circle cx="16" cy="13" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="48" cy="13" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/>
 </svg>

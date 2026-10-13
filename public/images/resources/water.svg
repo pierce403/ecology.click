@@ -1,8 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g transform="translate(16 16) scale(0.5)">
-    <rect width="64" height="64" rx="10" fill="#12334d" />
-    <path d="M32 12c8 12 16 22 16 30 0 9-7 16-16 16s-16-7-16-16c0-8 8-18 16-30z" fill="#4ac2f1" />
-    <path d="M32 20c6 9 12 17 12 22a12 12 0 0 1-24 0c0-5 6-13 12-22z" fill="#70d6ff" />
-    <path d="M24 44c2 3 5 5 8 5s6-2 8-5" fill="none" stroke="#d8f5ff" stroke-width="2" stroke-linecap="round" opacity="0.7" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<path d="M4 33l8-14 14-9 18 3 13 12 4 18-11 13-26 2-19-9z" fill="#455c47" opacity=".8"/>
+<path d="M8 34l9-14 10-5 15 2 12 11 3 15-9 9-23 2-16-9z" fill="url(#water)" stroke="#749f8d" stroke-width="1.5"/>
+<path d="M14 31l7-8 15-4 14 9m-36 9 12 4 18-4m-27 10 15 3 16-5" fill="none" stroke="#98c2bb" stroke-width="1.2" opacity=".5"/>
+<path d="M9 37l5 7m36-10 3 8m-24 9h11" fill="none" stroke="#d1d5b6" stroke-width="1.2" opacity=".7"/>
+<g fill="#4e693f"><path d="M8 31l-1-10 5 8-1-12 3 11zM50 51l2-10 2 8 4-8-2 11z"/><path d="M17 54l-1-7 4 5 1-8 2 9z"/></g>
 </svg>

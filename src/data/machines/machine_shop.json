@@ -1,0 +1,28 @@
+{
+  "id": "machine_shop",
+  "name": "Machine Shop",
+  "description": "Cuts usable steel plates from salvaged metal. Share supplies through the settlement stockpile.",
+  "tier": 1,
+  "buildTime": 5,
+  "build": {
+    "parts": {
+      "wood": 10,
+      "scrap_metal": 6,
+      "fastener_pack": 3
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {
+      "scrap_metal": 3,
+      "fastener_pack": 1
+    },
+    "outputs": {
+      "steel_plate": 3
+    },
+    "workTime": 5
+  },
+  "outputLimit": 30
+}

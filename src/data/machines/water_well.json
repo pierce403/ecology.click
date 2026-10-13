@@ -1,0 +1,25 @@
+{
+  "id": "water_well",
+  "name": "Water Well",
+  "description": "Pumps groundwater into the settlement stockpile. Near surface water: twice the rate.",
+  "tier": 0,
+  "buildTime": 5,
+  "build": {
+    "parts": {
+      "wood": 8,
+      "scrap_metal": 4,
+      "soil": 10
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {
+      "water": 2
+    },
+    "workTime": 5
+  },
+  "outputLimit": 60
+}

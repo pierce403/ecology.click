@@ -1,0 +1,22 @@
+{
+  "id": "storage_shed",
+  "name": "Storage Shed",
+  "description": "Organizes the settlement stockpile; each shed increases hand-gathering by 2.",
+  "tier": 0,
+  "buildTime": 4,
+  "build": {
+    "parts": {
+      "wood": 10,
+      "soil": 8,
+      "sand": 4
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {},
+    "workTime": 4
+  }
+}

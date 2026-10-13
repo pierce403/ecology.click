@@ -1,175 +1,80 @@
-
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ecology.click</title>
-    <style>
-      html, body { margin:0; padding:0; height:100%; background:#0b0f12; color:#e6e8ea; font-family: ui-sans-serif, system-ui, -apple-system; }
-      #app { height:100%; width:100%; }
-      #ui-overlay { position:fixed; inset:0; pointer-events:none; z-index:5; }
-      #ui-overlay > * { pointer-events:auto; }
-      .hud { position:fixed; top:8px; left:8px; background:#1118; padding:10px 14px; border-radius:10px; font-size:14px; display:flex; flex-direction:column; gap:6px; max-width:min(360px, 46vw); box-shadow:0 6px 18px #0008; }
-      .hud-links { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; }
-      .hud-link { color:#94d0ff; text-decoration:none; font-weight:600; background:none; border:none; padding:0; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:4px; }
-      .hud-link:hover, .hud-link:focus-visible { text-decoration:underline; outline:none; }
-      .hud-link:focus-visible { box-shadow:0 0 0 2px #94d0ff55; border-radius:4px; }
-      .hud-about { font-size:12px; line-height:1.5; color:#cfd8df; background:#0d151a; border:1px solid #1f2a33; border-radius:8px; padding:8px 10px; }
-      .hud-about a { color:#9cd8ff; text-decoration:underline; }
-      .hud-vitals { font-size:12px; color:#cfd8df; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-      .hud-separator { opacity:0.6; }
-      .hud-vitals-label { font-weight:600; letter-spacing:0.02em; }
-      .hotbar { position:fixed; bottom:8px; left:50%; transform:translateX(-50%); display:flex; gap:8px; background:#1118; padding:8px; border-radius:10px; }
-      .slot { width:48px; height:48px; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:1px solid #333; border-radius:8px; cursor:pointer; padding:4px; }
-      .slot.active { outline:2px solid #7bd; }
-      .slot-icon { width:32px; height:32px; image-rendering:pixelated; }
-      .slot-label { font-size:10px; color:#cfd8df; }
-      .slot-count { position:absolute; bottom:4px; right:4px; font-size:10px; color:#f0f4f6; font-weight:600; background:#000d; padding:1px 4px; border-radius:4px; }
-      .event-log { position:fixed; bottom:8px; right:8px; width:300px; height:200px; background:#1118; border:1px solid #333; border-radius:8px; overflow:hidden; }
-      .event-log-content { height:100%; overflow-y:auto; padding:8px; font-size:12px; line-height:1.4; }
-      .event-item { margin-bottom:4px; color:#ccc; }
-      .event-item:last-child { margin-bottom:0; }
-      .buildables-list { position:fixed; left:8px; top:50px; width:250px; height:400px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
-      .buildable-item { margin-bottom:8px; padding:8px; border:1px solid #333; border-radius:6px; cursor:pointer; transition:all 0.2s; }
-      .buildable-item.available { background:#1a2a1a; border-color:#4a6; }
-      .buildable-item.unavailable { background:#2a1a1a; border-color:#666; color:#666; cursor:not-allowed; }
-      .buildable-item.available:hover { background:#2a3a2a; }
-      .buildable-name { font-weight:bold; }
-      .buildable-desc { font-size:11px; color:#ccc; }
-      .buildable-header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-      .buildable-icon { width:36px; height:36px; image-rendering:pixelated; flex-shrink:0; }
-      .buildable-req { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
-      .buildable-req-item { display:inline-flex; align-items:center; gap:4px; background:#0c151c; border:1px solid #1f2a33; padding:3px 6px; border-radius:6px; font-size:11px; color:#cfd8df; }
-      .buildable-req-item img { width:18px; height:18px; image-rendering:pixelated; }
-      .buildable-time { font-size:10px; color:#888; }
-      .build-queue { position:fixed; bottom:8px; left:8px; width:300px; height:150px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
-      .queue-empty { color:#666; font-style:italic; text-align:center; margin-top:20px; }
-      .queue-item { margin-bottom:8px; padding:6px; border:1px solid #333; border-radius:4px; background:#1a1a1a; }
-      .queue-item.building { background:#1a2a1a; border-color:#4a6; }
-      .queue-item.queued { background:#1a1a2a; border-color:#666; opacity:0.7; }
-      .queue-header { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-      .queue-icon { width:28px; height:28px; image-rendering:pixelated; flex-shrink:0; }
-      .queue-name { font-weight:bold; }
-      .queue-progress { display:flex; align-items:center; gap:8px; }
-      .progress-bar { flex:1; height:8px; background:#333; border-radius:4px; overflow:hidden; }
-      .progress-fill { height:100%; background:#4a6; transition:width 0.3s; }
-      .queue-time { font-size:11px; color:#aaa; min-width:30px; text-align:right; }
-      .cancel-btn { background:#d44; color:white; border:none; border-radius:3px; width:20px; height:20px; cursor:pointer; font-size:12px; }
-      .cancel-btn:hover { background:#f66; }
-      .inventory-list { position:fixed; top:96px; right:12px; width:200px; height:300px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:8px; }
-      .inventory-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; margin-bottom:4px; border-radius:4px; gap:8px; }
-      .inventory-item.resource { background:#1a2a1a; border:1px solid #4a6; }
-      .inventory-item.item { background:#1a1a2a; border:1px solid #46a; }
-      .inventory-info { display:flex; align-items:center; gap:8px; }
-      .inventory-icon { width:28px; height:28px; image-rendering:pixelated; }
-      .inventory-name { font-size:12px; }
-      .inventory-count { font-size:11px; color:#d0d6da; font-weight:bold; }
-      .tech-tree { position:fixed; top:96px; right:228px; width:260px; max-height:360px; background:#1118; border:1px solid #333; border-radius:8px; overflow-y:auto; padding:10px; }
-      .tech-tier { background:#0e161b; border:1px solid #1f2a33; border-radius:8px; padding:10px 12px; margin-bottom:10px; box-shadow:0 2px 6px #0006; }
-      .tech-tier:last-of-type { margin-bottom:0; }
-      .tech-tier-header { display:flex; flex-direction:column; gap:2px; margin-bottom:8px; }
-      .tech-tier-rank { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#7bd; }
-      .tech-tier-title { font-size:16px; margin:0; color:#f0f4f6; }
-      .tech-tier-tagline { margin:0; font-size:12px; color:#9fb6c5; }
-      .tech-tier-section { margin-bottom:8px; }
-      .tech-tier-section:last-of-type { margin-bottom:0; }
-      .tech-tier-section-title { margin:0 0 4px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:#94d0ff; }
-      .tech-tier-list { margin:0; padding-left:18px; font-size:12px; color:#cfd8df; line-height:1.5; }
-      .tech-tier-list li { margin-bottom:2px; }
-      .tech-tier-list li:last-of-type { margin-bottom:0; }
-      .tech-tier-notes { margin-top:8px; border-top:1px solid #1f2a33; padding-top:8px; }
-      .tech-tier-note { margin:0 0 4px 0; font-size:12px; color:#cfd8df; }
-      .tech-tier-note:last-of-type { margin-bottom:0; }
-      .tech-tier-note-label { font-weight:600; color:#94d0ff; }
-      .tech-tier-note-text { color:#d8e2ea; }
-      .overlay-hidden { display:none !important; }
-      .ui-button { position:fixed; z-index:10; background:#111a; color:#e6e8ea; border:1px solid #2c3e4a; border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; backdrop-filter:blur(8px); box-shadow:0 4px 12px #0006; transition:background 0.2s, transform 0.2s; touch-action:manipulation; }
-      .ui-button:active { transform:scale(0.98); }
-      .overlay-toggle-group { position:fixed; top:12px; left:8px; right:8px; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; z-index:10; pointer-events:none; }
-      .overlay-toggle-group .ui-button { position:static; min-width:0; padding:6px 12px; font-size:12px; letter-spacing:0.02em; pointer-events:auto; }
-      .ui-button[data-active="false"] { opacity:0.6; border-color:#1f2a33; background:#0a1014aa; }
-      #mode-toggle { bottom:12px; right:12px; }
-      #mode-toggle[data-mode='move'] { background:#1a3820aa; border-color:#3a6a46; }
-      #mode-toggle[data-mode='build'] { background:#38201aaa; border-color:#6a463a; }
-      @media (max-width: 900px) {
-        .buildables-list, .inventory-list, .tech-tree { width: min(260px, 90vw); }
-        .event-log { width: min(280px, 90vw); height: 160px; }
-        .build-queue { width: min(280px, 90vw); }
-        .hotbar { gap:6px; padding:6px 10px; }
-        .slot { width:44px; height:44px; }
-        .hud { max-width: min(90vw, 420px); font-size:13px; }
-      }
-      @media (max-width: 640px) {
-        #ui-overlay { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:10px; padding:10px; padding-bottom:120px; }
-        #ui-overlay > .hud,
-        #ui-overlay > .buildables-list,
-        #ui-overlay > .inventory-list,
-        #ui-overlay > .tech-tree,
-        #ui-overlay > .event-log,
-        #ui-overlay > .build-queue,
-        #ui-overlay > .overlay-toggle-group { position:static; width:min(480px, 94vw); max-width:94vw; transform:none; left:auto; right:auto; }
-        .overlay-toggle-group { pointer-events:auto; justify-content:space-between; }
-        .hud { text-align:center; }
-        .hud-links { justify-content:center; }
-        .buildables-list,
-        .inventory-list,
-        .tech-tree,
-        .event-log,
-        .build-queue { height:auto; max-height:clamp(140px, 24vh, 220px); }
-        .overlay-toggle-group {
-          align-items:center;
-          flex-wrap:nowrap;
-          overflow-x:auto;
-          gap:6px;
-        }
-        .overlay-toggle-group .ui-button {
-          flex:1 0 auto;
-          white-space:nowrap;
-        }
-        .tech-tree { order:4; }
-        .event-log { order:5; }
-        .build-queue { order:6; }
-        .hotbar { bottom:12px; left:50%; transform:translateX(-50%); }
-        #mode-toggle { bottom:calc(12px + 64px + 12px); }
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#232620" />
+    <meta name="description" content="Build an open-source civilization. Gather resources, automate production, and unlock a sustainable industrial future." />
+    <title>Ecology — Field Operations</title>
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app" aria-label="Ecology game world"></div>
     <div id="ui-overlay">
       <div class="hud">
-        <div class="hud-links">
-          <a class="hud-link" href="https://www.opensourceecology.org/" target="_blank" rel="noopener">Open Source Ecology</a>
-          <span class="hud-separator">·</span>
-          <button class="hud-link hud-about-toggle" id="hud-about-toggle" type="button" aria-expanded="false" aria-controls="hud-about">About this site</button>
+        <div class="brand">
+          <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 35 12v16L20 37 5 28V12z"/><path d="M13 25V15h14M13 20h11M13 25h14"/></svg>
+          <div class="brand-copy"><span class="brand-name">ECOLOGY<span class="brand-dot">.</span></span><span class="brand-subtitle">FIELD OPERATIONS</span></div>
+        </div>
+        <div class="hud-vitals" aria-label="Player vitals">
+          <span class="vital"><span class="vital-indicator health-indicator"></span><span class="vital-label">HEALTH</span><span data-hud-health>100</span></span>
+          <span class="vital"><span class="vital-indicator water-indicator"></span><span class="vital-label">WATER</span><span data-hud-thirst>100</span></span>
+          <button class="hud-link hud-about-toggle" id="hud-about-toggle" type="button" aria-expanded="false" aria-controls="hud-about" aria-label="Open field guide">?</button>
+          <button class="hud-link pause-button" id="pause-button" type="button" aria-pressed="false">Pause</button>
         </div>
         <div class="hud-about" id="hud-about" hidden>
-          <p>You are the last working supply truck, stranded deep in the remote wilderness after civilization faltered.</p>
-          <p>Your mission is to rebuild society piece by piece using only the open blueprints from the <a href="https://wiki.opensourceecology.org/" target="_blank" rel="noopener">Open Source Ecology wiki</a>.</p>
-        </div>
-        <div class="hud-vitals">
-          <span class="hud-vitals-label">Vitals</span>
-          <span class="hud-separator">·</span>
-          <span>Health <span data-hud-health>100</span></span>
-          <span class="hud-separator">|</span>
-          <span>Thirst <span data-hud-thirst>100</span></span>
+          <span class="panel-eyebrow">FIELD GUIDE</span>
+          <p>Rebuild with open blueprints. Gather materials, place machines, and connect production.</p>
+          <p><kbd>WASD</kbd> move · <kbd>Space</kbd> gather · <kbd>E</kbd> drink</p>
+          <p><kbd>1–9</kbd> equip · <kbd>B</kbd> build · <kbd>G</kbd> grid · <kbd>P</kbd> pause · <kbd>Esc</kbd> cancel</p>
+          <a href="https://www.opensourceecology.org/" target="_blank" rel="noopener">Inspired by Open Source Ecology ↗</a>
         </div>
       </div>
-      <div id="overlay-toggle-group" class="overlay-toggle-group">
-        <button id="toggle-buildables" class="ui-button" type="button" aria-pressed="true" aria-controls="buildables-list">Buildables</button>
+      <div id="overlay-toggle-group" class="overlay-toggle-group" role="toolbar" aria-label="Game panels">
+        <button id="toggle-buildables" class="ui-button" type="button" aria-pressed="true" aria-controls="buildables-list">Build</button>
         <button id="toggle-inventory" class="ui-button" type="button" aria-pressed="true" aria-controls="inventory-list">Inventory</button>
-        <button id="toggle-tech-tree" class="ui-button" type="button" aria-pressed="true" aria-controls="tech-tree">Tech Tree</button>
-        <button id="toggle-event-log" class="ui-button" type="button" aria-pressed="true" aria-controls="event-log">Event Log</button>
-        <button id="toggle-build-queue" class="ui-button" type="button" aria-pressed="true" aria-controls="build-queue">Build Queue</button>
+        <button id="toggle-tech-tree" class="ui-button" type="button" aria-pressed="false" aria-controls="tech-tree">Research</button>
+        <button id="toggle-event-log" class="ui-button" type="button" aria-pressed="false" aria-controls="event-log">Log</button>
+        <button id="toggle-build-queue" class="ui-button" type="button" aria-pressed="false" aria-controls="build-queue">Queue</button>
       </div>
-      <div class="hotbar" id="hotbar"></div>
-      <div class="event-log" id="event-log"></div>
-      <div class="buildables-list" id="buildables-list"></div>
-      <div class="tech-tree" id="tech-tree"></div>
-      <div class="build-queue" id="build-queue"></div>
-      <div class="inventory-list" id="inventory-list"></div>
-      <button id="mode-toggle" class="ui-button" type="button" data-mode="build" aria-pressed="false">Build Mode</button>
+      <div class="inventory-list" id="inventory-list" aria-label="Available materials"></div>
+      <div class="objective-panel" aria-label="Current objective">
+        <div class="objective-heading"><span class="objective-status"></span><span class="panel-eyebrow">NEXT MILESTONE</span></div>
+        <h1 id="objective-title">A foothold in the wilderness</h1>
+        <p id="objective-detail">Gather materials to build your first machines.</p>
+        <div class="objective-track"><div id="objective-progress" style="width:0%"></div></div>
+        <div id="production-summary" aria-label="Production overview">Your factory starts here.</div>
+      </div>
+      <div class="buildables-list" id="buildables-list" aria-label="Fabrication blueprints"></div>
+      <div class="tech-tree overlay-hidden" id="tech-tree" aria-label="Technology tree"></div>
+      <div class="event-log overlay-hidden" id="event-log" aria-label="Operations log"></div>
+      <div class="build-queue overlay-hidden" id="build-queue" aria-label="Fabrication queue"></div>
+      <div class="machine-inspector overlay-hidden" id="machine-inspector" aria-label="Selected machine">
+        <span class="panel-eyebrow">MACHINE INSPECTOR</span>
+        <h2 id="inspector-title">Machine</h2>
+        <div id="inspector-body"></div>
+        <div class="inspector-actions"><button id="inspector-remove" type="button" class="inspector-remove">Pack up machine</button><button id="inspector-close" type="button" class="inspector-close">Close</button></div>
+      </div>
+      <div class="quickbar-shell">
+        <span class="quickbar-label">QUICKBAR</span>
+        <div class="hotbar" id="hotbar" role="toolbar" aria-label="Placeable machines"></div>
+      </div>
+      <span class="save-status" id="save-status" role="status">Autosave</span>
+      <div class="keyboard-hints" aria-hidden="true"><span><kbd>WASD</kbd> move</span><span><kbd>Space</kbd> gather</span><span><kbd>B</kbd> build</span><span><kbd>G</kbd> grid</span></div>
+      <button id="mode-toggle" class="ui-button" type="button" data-mode="move" aria-pressed="true">Move Mode</button>
+      <div id="touch-controls" class="touch-controls" aria-label="Touch game controls">
+        <div class="touch-dpad" role="group" aria-label="Movement">
+          <button class="touch-button touch-up" type="button" data-action="up" aria-label="Move north">▲</button>
+          <button class="touch-button touch-left" type="button" data-action="left" aria-label="Move west">◀</button>
+          <span class="touch-center" aria-hidden="true"></span>
+          <button class="touch-button touch-right" type="button" data-action="right" aria-label="Move east">▶</button>
+          <button class="touch-button touch-down" type="button" data-action="down" aria-label="Move south">▼</button>
+        </div>
+        <div class="touch-actions" role="group" aria-label="Actions">
+          <button class="touch-button touch-gather" type="button" data-action="gather">Gather</button>
+          <button class="touch-button" type="button" data-action="drink">Drink</button>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

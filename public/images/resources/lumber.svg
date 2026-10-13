@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="33" cy="48" rx="25" ry="8" fill="#22301e" opacity=".28"/>
+<g stroke="#6e6643" stroke-width="1.2" stroke-linejoin="round"><path d="M8 37l30-23 19 9-28 25z" fill="#ceae73"/><path d="M8 37v10l21 10v-9z" fill="#a18a53"/><path d="M29 48l28-25v10L29 57z" fill="#8a8252"/>
+<path d="M7 29l29-23 21 9-28 25z" fill="#ddc48e"/><path d="M7 29v9l22 10v-8z" fill="#b5a16b"/><path d="M29 40l28-25v9L29 48z" fill="#938a5b"/>
+</g><path d="M13 28l24-18m-16 22 24-19m-13 21 17-16m-37 23 13 6m12-14 14-13" fill="none" stroke="#af9861" stroke-width="1"/>
+<path d="M10 30l18 8m-16 7 14 7" stroke="#edd6a1" stroke-width="1.2"/>
+</svg>

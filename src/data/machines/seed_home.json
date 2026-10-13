@@ -1,0 +1,23 @@
+{
+  "id": "seed_home",
+  "name": "Seed Eco-Home",
+  "description": "Your first livable settlement: earth bricks, fired masonry and timber framing.",
+  "tier": 6,
+  "buildTime": 12,
+  "build": {
+    "parts": {
+      "brick_ceb": 40,
+      "lumber": 24,
+      "fired_brick": 8,
+      "fastener_pack": 6
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {},
+    "workTime": 4
+  }
+}

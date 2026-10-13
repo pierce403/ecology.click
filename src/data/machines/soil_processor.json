@@ -1,0 +1,33 @@
+{
+  "id": "soil_processor",
+  "name": "Soil Processor",
+  "description": "Mixes 70% soil, 20% clay, 10% sand with water into 10 prepared soil.",
+  "tier": 3,
+  "buildTime": 6,
+  "build": {
+    "parts": {
+      "steel_plate": 4,
+      "fastener_pack": 3,
+      "hydraulic_pack": 1
+    }
+  },
+  "power": {
+    "kind": "hydraulic",
+    "requires": "power_cube",
+    "flow_gpm": 4,
+    "pressure_psi": 2000
+  },
+  "operate": {
+    "inputs": {
+      "soil": 7,
+      "clay": 2,
+      "sand": 1,
+      "water": 1
+    },
+    "outputs": {
+      "prepared_soil": 10
+    },
+    "workTime": 6
+  },
+  "outputLimit": 30
+}

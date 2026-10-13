@@ -1,0 +1,29 @@
+{
+  "id": "kiln",
+  "name": "Kiln",
+  "description": "Wood-fired kiln: clay and sand become fired masonry for the eco-home.",
+  "tier": 1,
+  "buildTime": 5,
+  "build": {
+    "parts": {
+      "soil": 12,
+      "clay": 10,
+      "sand": 6
+    }
+  },
+  "power": {
+    "kind": "manual"
+  },
+  "operate": {
+    "inputs": {
+      "clay": 3,
+      "sand": 1,
+      "wood": 1
+    },
+    "outputs": {
+      "fired_brick": 3
+    },
+    "workTime": 6
+  },
+  "outputLimit": 24
+}

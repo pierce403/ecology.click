@@ -1,0 +1,30 @@
+{
+  "id": "cnc_torch",
+  "name": "CNC Torch Table",
+  "description": "Precisely cuts steel plates into components for advanced equipment.",
+  "tier": 5,
+  "buildTime": 8,
+  "build": {
+    "parts": {
+      "steel_plate": 8,
+      "hydraulic_pack": 2,
+      "fastener_pack": 6
+    }
+  },
+  "power": {
+    "kind": "hydraulic",
+    "requires": "power_cube",
+    "flow_gpm": 4,
+    "pressure_psi": 2000
+  },
+  "operate": {
+    "inputs": {
+      "steel_plate": 2
+    },
+    "outputs": {
+      "cut_parts": 3
+    },
+    "workTime": 5
+  },
+  "outputLimit": 24
+}

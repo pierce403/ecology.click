@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="34" cy="51" rx="27" ry="9" fill="#17221b" opacity=".33"/><g stroke="#26352d" stroke-width="1.4" stroke-linejoin="round">
+<path d="M10 44h45v10H10z" fill="#3c4637"/><path d="M12 47h41v5H12z" fill="url(#hazard)" stroke="none"/>
+<rect x="13" y="28" width="37" height="18" rx="2" fill="url(#olive)"/><rect x="14" y="34" width="14" height="9" fill="#324937"/>
+<path d="M17 35v7m4-7v7m4-7v7" stroke="#829375" stroke-width="1"/>
+<path d="M32 7h14v30H32z" fill="url(#metal)"/><path d="M36 10v24m6-24v24" stroke="#c1c9af" stroke-width="1"/>
+<path d="M34 15h10v18H34z" fill="#394e3a"/><path d="M34 18l10-3m-10 8 10-3m-10 8 10-3m-10 8 10-3" stroke="#abb49b" stroke-width="3"/>
+<path d="M32 35h14l-4 12h-6z" fill="#bbc2a4"/><path d="M33 38l12-3m-11 8 10-3" stroke="#596c53" stroke-width="2"/>
+<path d="M27 16h5v25h-5" stroke="#aa8b61" stroke-width="3" fill="none"/>
+<circle cx="21" cy="30" r="4" fill="#83977a"/><circle cx="21" cy="30" r="1.5" fill="#cbd2af"/>
+<path d="M47 44h11v6H47z" fill="#858f73"/><path d="M49 45l6 4m0-4-6 4" stroke="#d0cc9e" stroke-width="1"/>
+</g><circle cx="15" cy="45" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="50" cy="45" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="34" cy="10" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="44" cy="10" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/>
+</svg>

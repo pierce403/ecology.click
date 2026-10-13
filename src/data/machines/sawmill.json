@@ -1,0 +1,30 @@
+{
+  "id": "sawmill",
+  "name": "Sawmill",
+  "description": "Hydraulic saw converts salvaged timber into home-building lumber.",
+  "tier": 6,
+  "buildTime": 8,
+  "build": {
+    "parts": {
+      "cut_parts": 6,
+      "steel_plate": 6,
+      "hydraulic_pack": 2
+    }
+  },
+  "power": {
+    "kind": "hydraulic",
+    "requires": "power_cube",
+    "flow_gpm": 8,
+    "pressure_psi": 2000
+  },
+  "operate": {
+    "inputs": {
+      "wood": 3
+    },
+    "outputs": {
+      "lumber": 4
+    },
+    "workTime": 5
+  },
+  "outputLimit": 40
+}

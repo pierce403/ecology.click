@@ -1,18 +1,24 @@
 {
   "name": "ecology.click",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test-simulation.mjs"
   },
   "dependencies": {
     "phaser": "^3.80.0"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "typescript": "^5.5.4",
     "vite": "^7.1.9"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

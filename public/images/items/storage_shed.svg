@@ -1,13 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g transform="translate(16 16) scale(0.5)">
-    <rect width="64" height="64" rx="12" fill="#1f1a16" />
-    <g stroke="#0f0b08" stroke-width="2" stroke-linejoin="round">
-      <path d="M12 30l20-14 20 14v20H12z" fill="#7b4a1f" />
-      <path d="M18 32h28v16H18z" fill="#9b5f28" />
-      <path d="M24 34h16v12H24z" fill="#c47a34" />
-      <path d="M12 30h40" fill="none" stroke="#d99c62" />
-      <path d="M32 16v14" fill="none" stroke="#d99c62" />
-    </g>
-    <circle cx="30" cy="42" r="2" fill="#f1d3a5" />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="34" cy="51" rx="27" ry="9" fill="#17221b" opacity=".33"/><g stroke="#26352d" stroke-width="1.4" stroke-linejoin="round">
+<path d="M9 30h45v21H9z" fill="#847553"/><path d="M14 35h12v16H14z" fill="#3a4537"/><path d="M31 34h18v17H31z" fill="#3c4938"/>
+<path d="M6 29l24-18 29 17v8H6z" fill="#3b4f43"/><path d="M6 29l24-18 29 17-24 3z" fill="url(#roof)"/><path d="M30 11v20" stroke="#bdc2a0" stroke-width="1.5"/>
+<path d="M11 27l20-12 24 13m-40 1 16-10 20 11m-33 0 13-7 15 7" fill="none" stroke="#b5bca2" opacity=".33" stroke-width="1"/>
+<path d="M6 31h53v4H6z" fill="#889c81"/><path d="M9 51h45v4H9z" fill="#374a37"/>
+<path d="M10 37h4m13 0h4m18 0h5m-44 5h4m13 0h4m18 0h5m-44 5h4m13 0h4m18 0h5" stroke="#bfb18a" stroke-width="1"/>
+<rect x="34" y="40" width="9" height="9" rx="1" fill="#a18150"/><path d="M35 41l7 7m0-7-7 7" stroke="#d7ba7e" stroke-width="1"/>
+<path d="M19 36v13" stroke="#95a782" stroke-width="1"/><circle cx="22" cy="43" r="1" fill="#d7c585"/>
+</g>
 </svg>

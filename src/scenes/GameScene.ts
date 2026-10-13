@@ -1,1319 +1,469 @@
-
 import Phaser from 'phaser';
-import type { WorldState } from '../ecs/components';
-import { hydraulicsSystem, craftingSystem } from '../ecs/systems';
+import type { BuildableItem, PlacedEntity, Position, WorldState } from '../ecs/components';
+import { hydraulicsSystem, craftingSystem, progressionSystem, getObjective, getMachineStatus, getCollectionAmount, refundMachineInputs } from '../ecs/systems';
+import { machineDefinitions, createBuildables } from '../data/machines';
 import { techTree } from '../data/techTree';
+import { load, save } from '../utils/save';
+import { findPath } from '../utils/pathfinding';
 
 type ResourceKind = 'soil' | 'sand' | 'clay' | 'wood' | 'scrap_metal' | 'water';
-type BuildableId = 'power_cube' | 'ceb_press' | 'water_well' | 'storage_shed';
+const resourceKinds: ResourceKind[] = ['soil', 'sand', 'clay', 'wood', 'scrap_metal', 'water'];
+const keyAt = (pos: Position) => `${pos.x}:${pos.y}`;
+const escapeHTML = (value: string) => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
 
 export class GameScene extends Phaser.Scene {
   state: WorldState = {
-    gridSize: 32,
-    width: 16,
-    height: 16,
+    gridSize: 48, width: 16, height: 16,
     bounds: { minX: 0, minY: 0, maxX: 15, maxY: 15 },
-    placed: [],
-    player: { pos: { x: 15, y: 10 }, health: 100, thirst: 100, energy: 100 },
-    resources: [],
-    inventory: {
-      brick_ceb: 0,
-      soil: 0,
-      sand: 0,
-      clay: 0,
-      wood: 0,
-      scrap_metal: 0,
-      water: 0
-    },
-    selected: 'power_cube',
-    buildables: [
-      {
-        id: 'power_cube',
-        name: 'Power Cube',
-        description: 'Provides hydraulic power to adjacent machines',
-        requirements: { scrap_metal: 10, clay: 8, wood: 6 },
-        buildTime: 30,
-        unlocked: true
-      },
-      {
-        id: 'ceb_press',
-        name: 'CEB Press',
-        description: 'Compresses earth into building blocks',
-        requirements: { scrap_metal: 25, clay: 20, sand: 12 },
-        buildTime: 120,
-        unlocked: false
-      },
-      {
-        id: 'water_well',
-        name: 'Water Well',
-        description: 'Extracts water from underground',
-        requirements: { wood: 12, soil: 18, scrap_metal: 6 },
-        buildTime: 60,
-        unlocked: true
-      },
-      {
-        id: 'storage_shed',
-        name: 'Storage Shed',
-        description: 'Increases inventory capacity',
-        requirements: { wood: 24, soil: 20, sand: 14 },
-        buildTime: 90,
-        unlocked: true
-      }
-    ],
-    buildQueue: []
+    placed: [], player: { pos: { x: 8, y: 8 }, health: 100, thirst: 100, energy: 100 },
+    resources: [], inventory: { workbench: 1, wood: 18, scrap_metal: 14, soil: 20, sand: 10, clay: 10, water: 20 },
+    selected: 'workbench', buildables: createBuildables(), buildQueue: [], production: {}, researched: [], elapsed: 0
   };
 
-  private hotbar!: HTMLDivElement;
-  private eventLog!: HTMLDivElement;
-  private buildablesList!: HTMLDivElement;
-  private buildQueue!: HTMLDivElement;
-  private inventoryList!: HTMLDivElement;
-  private techTreePanel?: HTMLDivElement;
-  private gridGraphics?: Phaser.GameObjects.Graphics;
-  private groundLayer?: Phaser.GameObjects.TileSprite;
-  private generatedChunks = new Set<string>();
-  private ensuredSpawnResources = false;
   private readonly chunkSize = 16;
-  private overlayToggles: { button: HTMLButtonElement; element: HTMLElement; name: string }[] = [];
-  private modeToggleButton?: HTMLButtonElement;
-  private hudHealthValue?: HTMLSpanElement;
-  private hudThirstValue?: HTMLSpanElement;
-  private hudAboutSection?: HTMLDivElement;
-  private hudAboutToggle?: HTMLButtonElement;
-  private interactionMode: 'build' | 'move' = 'build';
-  private movementPath: { x: number; y: number }[] = [];
+  private generatedChunks = new Set<string>();
+  private groundLayer!: Phaser.GameObjects.TileSprite;
+  private gridGraphics!: Phaser.GameObjects.Graphics;
+  private networkGraphics!: Phaser.GameObjects.Graphics;
+  private statusGraphics!: Phaser.GameObjects.Graphics;
+  private ghostGraphics!: Phaser.GameObjects.Graphics;
+  private ghostSprite!: Phaser.GameObjects.Image;
+  private playerSprite!: Phaser.GameObjects.Image;
+  private destinationGraphics!: Phaser.GameObjects.Graphics;
+  private entitySprites = new Map<PlacedEntity, Phaser.GameObjects.Image>();
+  private resourceSprites = new Map<string, Phaser.GameObjects.Image>();
+  private movementPath: Position[] = [];
   private movementAccum = 0;
-  private playerSprite?: Phaser.GameObjects.Container;
-  private playerDirection: 'up' | 'down' | 'left' | 'right' = 'right';
+  private gatherAccum = 0;
+  private gatherTarget?: Position;
+  private interactionMode: 'move' | 'build' = 'move';
+  private paused = false;
+  private keys: Record<string, Phaser.Input.Keyboard.Key> = {};
+  private touchAction = '';
+  private uiAccum = 0;
+  private saveAccum = 0;
+  private terrainDirty = true;
+  private entitiesDirty = true;
+  private groundWidth = 0;
+  private groundHeight = 0;
+  private inspectorEntity?: PlacedEntity;
+  private htmlCache = new Map<string, string>();
+  private log: string[] = [];
+  private cleanup: (() => void)[] = [];
 
-  private readonly resourceTexturePaths: Record<ResourceKind, string> = {
-    soil: '/images/resources/soil.svg',
-    sand: '/images/resources/sand.svg',
-    clay: '/images/resources/clay.svg',
-    wood: '/images/resources/wood.svg',
-    scrap_metal: '/images/resources/scrap_metal.svg',
-    water: '/images/resources/water.svg'
-  } as const;
-
-  private readonly itemTexturePaths: Record<BuildableId, string> = {
-    power_cube: '/images/items/power_cube.svg',
-    ceb_press: '/images/items/ceb_press.svg',
-    water_well: '/images/items/water_well.svg',
-    storage_shed: '/images/items/storage_shed.svg'
-  } as const;
-
-  private readonly inventoryIconPaths: Record<string, string> = {
-    soil: '/images/resources/soil.svg',
-    sand: '/images/resources/sand.svg',
-    clay: '/images/resources/clay.svg',
-    wood: '/images/resources/wood.svg',
-    scrap_metal: '/images/resources/scrap_metal.svg',
-    water: '/images/resources/water.svg',
-    brick_ceb: '/images/resources/brick_ceb.svg',
-    power_cube: '/images/items/power_cube.svg',
-    ceb_press: '/images/items/ceb_press.svg',
-    water_well: '/images/items/water_well.svg',
-    storage_shed: '/images/items/storage_shed.svg'
-  } as const;
-
-  private worldToPixelX(tileX: number) {
-    return (tileX - this.state.bounds.minX) * this.state.gridSize;
-  }
-
-  private worldToPixelY(tileY: number) {
-    return (tileY - this.state.bounds.minY) * this.state.gridSize;
-  }
-
-  private worldToPixelCenterX(tileX: number) {
-    return this.worldToPixelX(tileX) + this.state.gridSize / 2;
-  }
-
-  private worldToPixelCenterY(tileY: number) {
-    return this.worldToPixelY(tileY) + this.state.gridSize / 2;
-  }
-
-  private pixelToTileX(pixelX: number) {
-    return Math.floor(pixelX / this.state.gridSize) + this.state.bounds.minX;
-  }
-
-  private pixelToTileY(pixelY: number) {
-    return Math.floor(pixelY / this.state.gridSize) + this.state.bounds.minY;
-  }
-
-  constructor() {
-    super('game');
-  }
+  constructor() { super('game'); }
 
   preload() {
     this.load.svg('desert-ground', '/images/desert-ground.svg', { width: 256, height: 256 });
-
-    const resourceEntries = Object.entries(this.resourceTexturePaths) as [ResourceKind, string][];
-    for (const [type, path] of resourceEntries) {
-      this.load.svg(`resource-${type}`, path, { width: 64, height: 64 });
-    }
-
-    const itemEntries = Object.entries(this.itemTexturePaths) as [BuildableId, string][];
-    for (const [id, path] of itemEntries) {
-      this.load.svg(`item-${id}`, path, { width: 64, height: 64 });
-    }
+    this.load.svg('supply-truck', '/images/items/supply_truck.svg', { width: 80, height: 80 });
+    for (const id of resourceKinds) this.load.svg(`resource-${id}`, `/images/resources/${id}.svg`, { width: 64, height: 64 });
+    for (const id of Object.keys(machineDefinitions)) this.load.svg(`item-${id}`, `/images/items/${id}.svg`, { width: 80, height: 80 });
   }
 
   create() {
-    this.cameras.main.setBackgroundColor(0x0b0f12);
-    this.cameras.main.setZoom(1.5);
-    this.cameras.main.centerOn(
-      this.worldToPixelCenterX(this.state.player.pos.x),
-      this.worldToPixelCenterY(this.state.player.pos.y)
-    );
-
-    this.refreshGroundLayer(
-      this.state.width * this.state.gridSize,
-      this.state.height * this.state.gridSize
-    );
-
-    this.gridGraphics = this.add.graphics();
-    this.gridGraphics.setDepth(-1);
-    this.gridGraphics.lineStyle(1, 0x28323a, 1);
-
-    this.initializeWorld();
-
-    this.setupPointerInput();
-
-    this.setupHud();
-    // Player movement
-    this.input.keyboard?.on('keydown-W', () => this.movePlayer(0, -1));
-    this.input.keyboard?.on('keydown-S', () => this.movePlayer(0, 1));
-    this.input.keyboard?.on('keydown-A', () => this.movePlayer(-1, 0));
-    this.input.keyboard?.on('keydown-D', () => this.movePlayer(1, 0));
-    
-    // Resource collection
-    this.input.keyboard?.on('keydown-SPACE', () => this.collectResource());
-    
-    // Drink water to restore thirst
-    this.input.keyboard?.on('keydown-E', () => this.drinkWater());
-
-    // simple HUD redraw loop
-    this.time.addEvent({
-      loop: true, delay: 250, callback: () => this.updateHUD()
-    });
-
-    // hotbar
-    this.buildHotbar();
-    
-    // event log
-    this.buildEventLog();
-    
-    // buildables list
-    this.buildBuildablesList();
-    
-    // build queue
-    this.buildBuildQueue();
-
-    // inventory list
-    this.buildInventoryList();
-
-    // tech tree panel
-    this.buildTechTreePanel();
-
-    this.setupOverlayToggles();
-    this.setupInteractionModeToggle();
-
-    this.updateHUD();
-
-    // entity visuals container
-    this.add.layer();
-    this.redrawEntities();
-    this.redrawPlayer();
-
-    // Add initial event
-    this.addEvent('Welcome to the desert! Collect resources and survive.');
-
-    (window as any).gameScene = this;
+    const snapshot = load();
+    if (snapshot) { this.state = snapshot.state; this.generatedChunks = new Set(snapshot.chunks); }
+    this.cameras.main.setBackgroundColor(0x302c22).setZoom(1.15).setRoundPixels(true);
+    this.groundLayer = this.add.tileSprite(0, 0, 768, 768, 'desert-ground').setOrigin(0).setDepth(-3);
+    this.gridGraphics = this.add.graphics().setDepth(-1).setVisible(false);
+    this.networkGraphics = this.add.graphics().setDepth(0.4);
+    this.statusGraphics = this.add.graphics().setDepth(5);
+    this.ghostGraphics = this.add.graphics().setDepth(7);
+    this.destinationGraphics = this.add.graphics().setDepth(6);
+    this.ghostSprite = this.add.image(0, 0, 'item-workbench').setDisplaySize(46, 46).setDepth(7).setAlpha(0.65).setVisible(false);
+    this.playerSprite = this.add.image(0, 0, 'supply-truck').setDisplaySize(48, 48).setDepth(10);
+    this.ensureSurroundingChunks(this.state.player.pos.x, this.state.player.pos.y);
+    if (!snapshot || snapshot.chunks.length === 0) this.seedSpawnResources();
+    progressionSystem(this.state); hydraulicsSystem(this.state); this.redrawPlayer();
+    this.cameras.main.startFollow(this.playerSprite, true, 0.18, 0.18);
+    this.cameras.main.centerOn(this.playerSprite.x, this.playerSprite.y);
+    this.setupInput(); this.setupUI(); this.redrawEntities(); this.updateHUD();
+    this.addEvent(snapshot ? 'Factory restored. Your machines and deposits are exactly where you left them.' : 'Supply truck ready. Select the Workbench in the hotbar, then place it on open ground.');
+    const saveOnExit = () => this.saveGame();
+    const visibility = () => { if (document.hidden) this.saveGame(); };
+    window.addEventListener('pagehide', saveOnExit); document.addEventListener('visibilitychange', visibility);
+    this.cleanup.push(() => window.removeEventListener('pagehide', saveOnExit), () => document.removeEventListener('visibilitychange', visibility));
+    this.events.once('shutdown', () => { this.saveGame(); this.cleanup.forEach(callback => callback()); });
+    (window as unknown as { gameScene: GameScene }).gameScene = this;
   }
 
-  private buildHotbar() {
-    this.hotbar = document.getElementById('hotbar') as HTMLDivElement;
+  // Pixel coordinates stay fixed as the bounds expand, including into negative tiles.
+  private worldToPixelCenterX(x: number) { return (x + 0.5) * this.state.gridSize; }
+  private worldToPixelCenterY(y: number) { return (y + 0.5) * this.state.gridSize; }
+  private pixelToTileX(x: number) { return Math.floor(x / this.state.gridSize); }
+  private pixelToTileY(y: number) { return Math.floor(y / this.state.gridSize); }
+
+  private setupInput() {
+    this.input.mouse?.disableContextMenu();
+    this.keys = this.input.keyboard?.addKeys('W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> ?? {};
+    this.input.keyboard?.on('keydown-B', () => this.setMode(this.interactionMode === 'move' ? 'build' : 'move'));
+    this.input.keyboard?.on('keydown-ESC', () => { this.setMode('move'); this.movementPath = []; this.gatherTarget = undefined; this.closeInspector(); });
+    this.input.keyboard?.on('keydown-E', () => this.drinkWater());
+    this.input.keyboard?.on('keydown-P', () => this.togglePause());
+    this.input.keyboard?.on('keydown-G', () => this.gridGraphics.setVisible(!this.gridGraphics.visible));
+    for (let i = 1; i <= 9; i++) this.input.keyboard?.on(`keydown-${i}`, () => {
+      const item = this.state.buildables.filter(item => item.unlocked || (this.state.inventory[item.id] ?? 0) > 0)[i - 1];
+      if (item) this.selectBlueprint(item.id);
+    });
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _objects: unknown[], _dx: number, dy: number) => {
+      this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom - Math.sign(dy) * 0.1, 0.55, 2));
+    });
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.paused) return;
+      const world = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+      const x = this.pixelToTileX(world.x), y = this.pixelToTileY(world.y);
+      this.ensureSurroundingChunks(x, y);
+      const existing = this.state.placed.find(entity => entity.pos.x === x && entity.pos.y === y);
+      if (existing && !pointer.rightButtonDown()) {
+        if (this.keys.SHIFT?.isDown) this.removeMachine(existing);
+        else { this.inspectorEntity = existing; document.getElementById('machine-inspector')?.classList.remove('overlay-hidden'); this.updateInspector(); }
+        return;
+      }
+      if (this.interactionMode === 'build' && !pointer.rightButtonDown()) { this.placeMachine(x, y); return; }
+      this.closeInspector(); this.gatherTarget = this.findResourceAt(x, y) ? { x, y } : undefined; this.setMovementTarget(x, y);
+    });
+  }
+
+  private setupUI() {
+    const on = (id: string, action: () => void) => {
+      const element = document.getElementById(id); if (!element) return;
+      element.addEventListener('click', action); this.cleanup.push(() => element.removeEventListener('click', action));
+    };
+    on('mode-toggle', () => this.setMode(this.interactionMode === 'move' ? 'build' : 'move'));
+    on('pause-button', () => this.togglePause());
+    on('inspector-remove', () => { if (this.inspectorEntity) this.removeMachine(this.inspectorEntity); });
+    on('inspector-close', () => this.closeInspector());
+    on('hud-about-toggle', () => {
+      const about = document.getElementById('hud-about'); if (!about) return; about.hidden = !about.hidden;
+      document.getElementById('hud-about-toggle')?.setAttribute('aria-expanded', `${!about.hidden}`);
+    });
+    if (window.matchMedia('(max-width: 640px)').matches) document.getElementById('buildables-list')?.classList.add('overlay-hidden');
+    for (const [id, target] of Object.entries({ 'toggle-buildables': 'buildables-list', 'toggle-inventory': 'inventory-list', 'toggle-tech-tree': 'tech-tree', 'toggle-event-log': 'event-log', 'toggle-build-queue': 'build-queue' })) {
+      const button = document.getElementById(id), panel = document.getElementById(target); if (!button || !panel) continue;
+      const update = () => { const visible = !panel.classList.contains('overlay-hidden'); button.dataset.active = `${visible}`; button.setAttribute('aria-pressed', `${visible}`); button.setAttribute('aria-expanded', `${visible}`); };
+      on(id, () => { panel.classList.toggle('overlay-hidden'); update(); }); update();
+    }
+    for (const id of ['hotbar', 'buildables-list', 'inventory-list', 'build-queue']) {
+      const element = document.getElementById(id); if (!element) continue;
+      const listener = (event: MouseEvent) => {
+        const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-machine], button[data-cancel]');
+        if (!button || button.disabled) return;
+        if (button.dataset.cancel !== undefined) this.cancelBuild(Number(button.dataset.cancel));
+        else if (button.dataset.machine) id === 'buildables-list' ? this.startBuilding(this.state.buildables.find(item => item.id === button.dataset.machine)!) : this.selectBlueprint(button.dataset.machine);
+      };
+      element.addEventListener('click', listener); this.cleanup.push(() => element.removeEventListener('click', listener));
+    }
+    for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>('#touch-controls [data-action]'))) {
+      const down = (event: PointerEvent) => { event.preventDefault(); button.setPointerCapture(event.pointerId); if (button.dataset.action === 'drink') this.drinkWater(); else this.touchAction = button.dataset.action ?? ''; };
+      const up = () => { this.touchAction = ''; };
+      button.addEventListener('pointerdown', down); button.addEventListener('pointerup', up); button.addEventListener('pointercancel', up);
+      this.cleanup.push(() => { button.removeEventListener('pointerdown', down); button.removeEventListener('pointerup', up); button.removeEventListener('pointercancel', up); });
+    }
+    this.setMode('move');
+  }
+  private setMode(mode: 'move' | 'build') {
+    this.interactionMode = mode; this.gatherTarget = undefined;
+    const button = document.getElementById('mode-toggle');
+    if (button) { button.dataset.mode = mode; button.textContent = mode === 'move' ? 'Move · B' : 'Place · B'; button.setAttribute('aria-pressed', `${mode === 'build'}`); }
     this.updateHotbar();
   }
-
-  private setupHud() {
-    const hud = document.querySelector('.hud');
-    if (!(hud instanceof HTMLDivElement)) return;
-
-    const healthEl = hud.querySelector('[data-hud-health]');
-    this.hudHealthValue = healthEl instanceof HTMLSpanElement ? healthEl : undefined;
-    const thirstEl = hud.querySelector('[data-hud-thirst]');
-    this.hudThirstValue = thirstEl instanceof HTMLSpanElement ? thirstEl : undefined;
-
-    const aboutSection = hud.querySelector('#hud-about');
-    this.hudAboutSection = aboutSection instanceof HTMLDivElement ? aboutSection : undefined;
-
-    const aboutToggle = hud.querySelector('.hud-about-toggle');
-    this.hudAboutToggle = aboutToggle instanceof HTMLButtonElement ? aboutToggle : undefined;
-
-    if (this.hudAboutToggle && this.hudAboutSection) {
-      const initialExpanded = !this.hudAboutSection.hasAttribute('hidden');
-      this.hudAboutToggle.setAttribute('aria-expanded', initialExpanded.toString());
-      this.hudAboutToggle.title = 'Read the ecology.click prologue';
-      this.hudAboutToggle.addEventListener('click', () => {
-        const willShow = this.hudAboutSection?.hasAttribute('hidden') ?? true;
-        if (!this.hudAboutSection) return;
-        if (willShow) {
-          this.hudAboutSection.removeAttribute('hidden');
-        } else {
-          this.hudAboutSection.setAttribute('hidden', '');
-        }
-        this.hudAboutToggle?.setAttribute('aria-expanded', willShow ? 'true' : 'false');
-      });
-    }
+  private togglePause() {
+    this.paused = !this.paused; const button = document.getElementById('pause-button');
+    if (button) { button.textContent = this.paused ? 'Resume · P' : 'Pause · P'; button.setAttribute('aria-pressed', `${this.paused}`); }
   }
+  private selectBlueprint(id: string) {
+    this.state.selected = id;
+    if ((this.state.inventory[id] ?? 0) > 0) this.setMode('build');
+    else { const item = this.state.buildables.find(item => item.id === id); if (item) this.startBuilding(item); }
+    this.updateHUD();
+  }
+  private canBuildItem(item: BuildableItem) { return item.unlocked && Object.entries(item.requirements).every(([id, amount]) => (this.state.inventory[id] ?? 0) + 1e-8 >= amount); }
+  private startBuilding(item: BuildableItem) {
+    if (!item || !this.canBuildItem(item)) { this.addEvent('Gather the missing materials before assembling this blueprint.'); return; }
+    for (const [id, amount] of Object.entries(item.requirements)) this.state.inventory[id] -= amount;
+    this.state.selected = item.id; this.state.buildQueue.push({ id: item.id, name: item.name, totalTime: item.buildTime, timeRemaining: item.buildTime });
+    this.addEvent(`${item.name} queued for assembly.`); this.updateHUD();
+  }
+  cancelBuild(index: number) {
+    const queued = this.state.buildQueue[index]; if (!queued) return;
+    for (const [id, amount] of Object.entries(machineDefinitions[queued.id]?.build.parts ?? {})) this.state.inventory[id] = (this.state.inventory[id] ?? 0) + amount;
+    this.state.buildQueue.splice(index, 1); this.addEvent(`${queued.name} cancelled; materials returned.`); this.updateHUD();
+  }
+  private placementValid(x: number, y: number) {
+    if (!machineDefinitions[this.state.selected]) return false;
+    if ((this.state.inventory[this.state.selected] ?? 0) < 1 || this.state.placed.some(entity => entity.pos.x === x && entity.pos.y === y)) return false;
+    if (this.state.selected !== 'hydraulic_hose' && this.state.player.pos.x === x && this.state.player.pos.y === y) return false;
+    const node = this.findResourceAt(x, y);
+    if (machineDefinitions[this.state.selected]?.resource) return node?.type === machineDefinitions[this.state.selected].resource!.type;
+    return !node || ['soil', 'sand', 'clay'].includes(node.type);
+  }
+  private placeMachine(x: number, y: number) {
+    if (!this.placementValid(x, y)) { this.addEvent(this.state.selected === 'scrap_drill' ? 'Place the drill directly on a scrap deposit.' : 'Choose open ground and an assembled machine.'); return; }
+    this.state.placed.push({ id: this.state.selected, pos: { x, y }, powered: false, progress: 0 }); this.state.inventory[this.state.selected] -= 1;
+    this.movementPath = []; this.gatherTarget = undefined; this.entitiesDirty = true;
+    progressionSystem(this.state, message => this.addEvent(message)); hydraulicsSystem(this.state);
+    this.addEvent(`${machineDefinitions[this.state.selected].name} placed.`);
+    if ((this.state.inventory[this.state.selected] ?? 0) === 0) this.setMode('move'); this.updateHUD();
+  }
+  private removeMachine(entity: PlacedEntity) {
+    if (!this.state.placed.includes(entity)) return;
+    refundMachineInputs(this.state, entity); this.state.placed.splice(this.state.placed.indexOf(entity), 1);
+    this.state.inventory[entity.id] = (this.state.inventory[entity.id] ?? 0) + 1;
+    this.entitiesDirty = true; this.closeInspector(); hydraulicsSystem(this.state);
+    this.addEvent(`${machineDefinitions[entity.id]?.name ?? entity.id} packed into inventory.`); this.updateHUD();
+  }
+  private closeInspector() { this.inspectorEntity = undefined; document.getElementById('machine-inspector')?.classList.add('overlay-hidden'); }
 
+  private writeHTML(id: string, html: string) {
+    if (this.htmlCache.get(id) === html) return; const element = document.getElementById(id); if (!element) return;
+    element.innerHTML = html; this.htmlCache.set(id, html);
+  }
+  private setText(id: string, text: string) { const element = document.getElementById(id); if (element && element.textContent !== text) element.textContent = text; }
+  private formatResourceLabel(id: string) { return machineDefinitions[id]?.name ?? id.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' '); }
+  private getIconPath(id: string) {
+    if (machineDefinitions[id]) return `/images/items/${id}.svg`;
+    const illustrated: string[] = [...resourceKinds, 'brick_ceb', 'steel_plate', 'frame_beam', 'fastener_pack', 'lumber', 'prepared_soil', 'fired_brick', 'hydraulic_pack', 'wheel_unit', 'cut_parts'];
+    return `/images/resources/${illustrated.includes(id) ? id : 'steel_plate'}.svg`;
+  }
+  private quantity(amount: number) { return Number.isInteger(amount) ? `${amount}` : `${Math.round(amount * 10) / 10}`; }
+  private recipeText(recipe: Record<string, number>) { return Object.entries(recipe).map(([id, amount]) => `${this.quantity(amount)} ${this.formatResourceLabel(id)}`).join(' + ') || 'No input'; }
   private updateHotbar() {
-    // Get all placeable items from inventory
-    const placeableItems = [
-      { id: 'power_cube', label: 'PC', name: 'Power Cube' },
-      { id: 'ceb_press', label: 'CEB', name: 'CEB Press' },
-      { id: 'water_well', label: 'WW', name: 'Water Well' },
-      { id: 'storage_shed', label: 'SS', name: 'Storage Shed' }
-    ].filter(item => (this.state.inventory[item.id] || 0) > 0);
-
-    const mk = (item: any) => {
-      const d = document.createElement('div');
-      d.className = 'slot' + (this.state.selected === item.id ? ' active' : '');
-      const iconPath = this.getIconPath(item.id);
-      d.innerHTML = `
-        <img class="slot-icon" src="${iconPath}" alt="${item.name} icon" />
-        <div class="slot-label">${item.label}</div>
-        <div class="slot-count">${this.state.inventory[item.id] || 0}</div>
-      `;
-      d.title = `${item.name} (${this.state.inventory[item.id] || 0} available)`;
-      d.onclick = () => {
-        this.state.selected = item.id;
-        for (const child of Array.from(this.hotbar.children)) child.classList.remove('active');
-        d.classList.add('active');
-      };
-      return d;
-    };
-    this.hotbar.replaceChildren(...placeableItems.map(mk));
+    const items = this.state.buildables.filter(item => item.unlocked || (this.state.inventory[item.id] ?? 0) > 0);
+    this.writeHTML('hotbar', items.map((item, index) => {
+      const count = Math.floor(this.state.inventory[item.id] ?? 0), available = count > 0;
+      return `<button type="button" class="slot${this.state.selected === item.id && this.interactionMode === 'build' ? ' active' : ''}${available ? '' : ' blueprint'}" data-machine="${item.id}" title="${escapeHTML(item.name)} · ${available ? `${count} ready · click to place` : 'click to assemble'}"><span class="slot-key">${index < 9 ? index + 1 : ''}</span><img class="slot-icon" src="${this.getIconPath(item.id)}" alt=""/><span class="slot-label">${escapeHTML(item.name.replace(/ \(.+\)/, ''))}</span><span class="slot-count">${available ? count : '+'}</span></button>`;
+    }).join(''));
   }
-
-  private buildEventLog() {
-    this.eventLog = document.getElementById('event-log') as HTMLDivElement;
-    this.eventLog.innerHTML = '<div class="event-log-content"></div>';
-  }
-
-  private addEvent(message: string) {
-    const content = this.eventLog.querySelector('.event-log-content') as HTMLDivElement;
-    const eventDiv = document.createElement('div');
-    eventDiv.className = 'event-item';
-    eventDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-
-    content.appendChild(eventDiv);
-
-    // Keep only last 20 events
-    while (content.children.length > 20) {
-      content.removeChild(content.firstChild!);
-    }
-
-    // Scroll to bottom
-    content.scrollTop = content.scrollHeight;
-  }
-
-  private setupPointerInput() {
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      const world = p.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      const gx = this.pixelToTileX(world.x);
-      const gy = this.pixelToTileY(world.y);
-      if (!this.ensureTileInWorld(gx, gy)) return;
-      this.ensureSurroundingChunks(gx, gy, 1);
-
-      const isPlayerTile =
-        gx === this.state.player.pos.x && gy === this.state.player.pos.y;
-      if (isPlayerTile && this.findResourceAt(gx, gy)) {
-        this.collectResource();
-        return;
-      }
-
-      if (this.shouldMoveOnPointer(p)) {
-        this.setMovementTarget(gx, gy);
-        return;
-      }
-
-      this.handleTileInteraction(gx, gy);
-    });
-  }
-
-  private shouldMoveOnPointer(p: Phaser.Input.Pointer) {
-    if (this.interactionMode === 'move') return true;
-    if (p.rightButtonDown()) return true;
-
-    const pointerType = p.pointerType;
-    if ((pointerType === 'touch' || pointerType === 'pen') && this.interactionMode === 'move') {
-      return true;
-    }
-
-    return false;
-  }
-
-  private handleTileInteraction(gx: number, gy: number) {
-    this.movementPath = [];
-    this.movementAccum = 0;
-
-    const existing = this.state.placed.find(e => e.pos.x === gx && e.pos.y === gy);
-    if (existing) {
-      this.state.placed = this.state.placed.filter(e => e !== existing);
-      this.state.inventory[existing.id] = (this.state.inventory[existing.id] || 0) + 1;
-      this.addEvent(`Removed ${existing.id} at (${gx}, ${gy}) and returned it to inventory`);
-      this.redrawEntities();
-      this.updateAllUI();
-      return;
-    }
-
-    if ((this.state.inventory[this.state.selected] || 0) > 0) {
-      this.state.placed.push({ id: this.state.selected, pos: { x: gx, y: gy }, powered: false });
-      this.state.inventory[this.state.selected] = (this.state.inventory[this.state.selected] || 0) - 1;
-      this.addEvent(`Placed ${this.state.selected} at (${gx}, ${gy})`);
-      this.redrawEntities();
-      this.updateAllUI();
-    } else {
-      this.addEvent(`Cannot place ${this.state.selected} - not in inventory`);
-    }
-  }
-
-  private buildBuildablesList() {
-    this.buildablesList = document.getElementById('buildables-list') as HTMLDivElement;
-    this.updateBuildablesList();
-  }
-
   private updateBuildablesList() {
-    // Check for unlocks
-    this.checkUnlocks();
-    
-    this.buildablesList.innerHTML = '';
-    
-    for (const item of this.state.buildables) {
-      const canBuild = this.canBuildItem(item);
-      const itemDiv = document.createElement('div');
-      itemDiv.className = `buildable-item ${canBuild ? 'available' : 'unavailable'}`;
-
-      const requirements = Object.entries(item.requirements)
-        .map(([resource, amount]) => {
-          const label = this.formatResourceLabel(resource);
-          const iconPath = this.getIconPath(resource);
-          return `
-            <span class="buildable-req-item" title="${label}">
-              <img src="${iconPath}" alt="${label} icon" />
-              <span>${amount}</span>
-            </span>
-          `;
-        })
-        .join('');
-
-      const iconPath = this.getIconPath(item.id);
-
-      itemDiv.innerHTML = `
-        <div class="buildable-header">
-          <img class="buildable-icon" src="${iconPath}" alt="${item.name} icon" />
-          <div>
-            <div class="buildable-name">${item.name}</div>
-            <div class="buildable-desc">${item.description}</div>
-          </div>
-        </div>
-        <div class="buildable-req">${requirements}</div>
-        <div class="buildable-time">${item.buildTime}s</div>
-      `;
-
-      if (canBuild) {
-        itemDiv.onclick = () => this.startBuilding(item);
-      }
-      
-      this.buildablesList.appendChild(itemDiv);
-    }
+    this.writeHTML('buildables-list', `<div class="panel-heading">Assembly <span>Shared stockpile</span></div>` + this.state.buildables.map(item => {
+      const available = this.canBuildItem(item);
+      const requirements = Object.entries(item.requirements).map(([id, amount]) => `<span class="buildable-req-item${(this.state.inventory[id] ?? 0) < amount ? ' missing' : ''}" title="${escapeHTML(this.formatResourceLabel(id))}"><img src="${this.getIconPath(id)}" alt=""/><span>${amount}</span></span>`).join('');
+      return `<button type="button" class="buildable-item ${available ? 'available' : 'unavailable'}${item.unlocked ? '' : ' locked'}" data-machine="${item.id}" ${available ? '' : 'disabled'} title="${escapeHTML(item.description)}"><span class="buildable-header"><img class="buildable-icon" src="${this.getIconPath(item.id)}" alt=""/><span><span class="buildable-name">${escapeHTML(item.name)}</span><span class="buildable-desc">${escapeHTML(item.description)}</span></span></span><span class="buildable-req">${requirements}</span><span class="buildable-time">${item.unlocked ? `${item.buildTime}s · assemble` : `Research tier ${item.tier}`}</span></button>`;
+    }).join(''));
   }
-
-  private checkUnlocks() {
-    // Unlock CEB Press when player has 5 bricks
-    const cebPress = this.state.buildables.find(item => item.id === 'ceb_press');
-    if (cebPress && !cebPress.unlocked && (this.state.inventory.brick_ceb || 0) >= 5) {
-      cebPress.unlocked = true;
-      this.addEvent('CEB Press blueprint unlocked!');
-    }
-  }
-
-  private canBuildItem(item: any): boolean {
-    if (!item.unlocked) return false;
-    
-    for (const [resource, amount] of Object.entries(item.requirements)) {
-      if ((this.state.inventory[resource] || 0) < amount) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private startBuilding(item: any) {
-    // Check if we can still build it
-    if (!this.canBuildItem(item)) {
-      this.addEvent(`Cannot build ${item.name} - insufficient resources`);
-      return;
-    }
-    
-    // Consume resources
-    for (const [resource, amount] of Object.entries(item.requirements)) {
-      this.state.inventory[resource] = (this.state.inventory[resource] || 0) - amount;
-    }
-    
-    // Add to build queue
-    this.state.buildQueue.push({
-      id: item.id,
-      name: item.name,
-      timeRemaining: item.buildTime,
-      totalTime: item.buildTime
-    });
-    
-    this.addEvent(`Queued ${item.name} for building (${item.buildTime}s)`);
-    this.updateAllUI();
-  }
-
-  private buildBuildQueue() {
-    this.buildQueue = document.getElementById('build-queue') as HTMLDivElement;
-    this.updateBuildQueue();
-  }
-
-  private buildTechTreePanel() {
-    const panel = document.getElementById('tech-tree');
-    if (panel instanceof HTMLDivElement) {
-      this.techTreePanel = panel;
-      this.renderTechTree();
-    }
-  }
-
-  private renderTechTree() {
-    if (!this.techTreePanel) return;
-
-    this.techTreePanel.innerHTML = '';
-
-    for (const tier of techTree) {
-      const tierSection = document.createElement('section');
-      tierSection.className = 'tech-tier';
-
-      const header = document.createElement('header');
-      header.className = 'tech-tier-header';
-
-      const tierLabel = document.createElement('span');
-      tierLabel.className = 'tech-tier-rank';
-      tierLabel.textContent = tier.tier;
-      header.appendChild(tierLabel);
-
-      const title = document.createElement('h3');
-      title.className = 'tech-tier-title';
-      title.textContent = tier.name;
-      header.appendChild(title);
-
-      if (tier.tagline) {
-        const tagline = document.createElement('p');
-        tagline.className = 'tech-tier-tagline';
-        tagline.textContent = tier.tagline;
-        header.appendChild(tagline);
-      }
-
-      tierSection.appendChild(header);
-
-      for (const section of tier.sections) {
-        const sectionEl = document.createElement('div');
-        sectionEl.className = 'tech-tier-section';
-
-        const sectionTitle = document.createElement('h4');
-        sectionTitle.className = 'tech-tier-section-title';
-        sectionTitle.textContent = section.label;
-        sectionEl.appendChild(sectionTitle);
-
-        const list = document.createElement('ul');
-        list.className = 'tech-tier-list';
-        for (const item of section.items) {
-          const listItem = document.createElement('li');
-          listItem.textContent = item;
-          list.appendChild(listItem);
-        }
-        sectionEl.appendChild(list);
-
-        tierSection.appendChild(sectionEl);
-      }
-
-      if (tier.notes && tier.notes.length > 0) {
-        const notesWrapper = document.createElement('div');
-        notesWrapper.className = 'tech-tier-notes';
-
-        for (const note of tier.notes) {
-          const noteEl = document.createElement('p');
-          noteEl.className = 'tech-tier-note';
-
-          const noteLabel = document.createElement('span');
-          noteLabel.className = 'tech-tier-note-label';
-          noteLabel.textContent = `${note.label}:`;
-          noteEl.appendChild(noteLabel);
-
-          const noteText = document.createElement('span');
-          noteText.className = 'tech-tier-note-text';
-          noteText.textContent = ` ${note.text}`;
-          noteEl.appendChild(noteText);
-
-          notesWrapper.appendChild(noteEl);
-        }
-
-        tierSection.appendChild(notesWrapper);
-      }
-
-      this.techTreePanel.appendChild(tierSection);
-    }
-  }
-
-  private updateBuildQueue() {
-    this.buildQueue.innerHTML = '';
-    
-    if (this.state.buildQueue.length === 0) {
-      this.buildQueue.innerHTML = '<div class="queue-empty">No items building</div>';
-      return;
-    }
-    
-    for (let i = 0; i < this.state.buildQueue.length; i++) {
-      const item = this.state.buildQueue[i];
-      const itemDiv = document.createElement('div');
-      const isBuilding = i === 0; // First item is being built
-      itemDiv.className = `queue-item ${isBuilding ? 'building' : 'queued'}`;
-
-      const progress = ((item.totalTime - item.timeRemaining) / item.totalTime) * 100;
-      const iconPath = this.getIconPath(item.id);
-
-      itemDiv.innerHTML = `
-        <div class="queue-header">
-          <img class="queue-icon" src="${iconPath}" alt="${item.name} icon" />
-          <div class="queue-name">${isBuilding ? '🔨 ' : '⏳ '}${item.name}</div>
-        </div>
-        <div class="queue-progress">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${progress}%"></div>
-          </div>
-          <div class="queue-time">${Math.ceil(item.timeRemaining)}s</div>
-          <button class="cancel-btn" onclick="window.gameScene?.cancelBuilding(${i})">×</button>
-        </div>
-      `;
-      
-      this.buildQueue.appendChild(itemDiv);
-    }
-  }
-
-  private buildInventoryList() {
-    this.inventoryList = document.getElementById('inventory-list') as HTMLDivElement;
-    this.updateInventoryList();
-  }
-
   private updateInventoryList() {
-    this.inventoryList.innerHTML = '';
-    
-    const allItems = [
-      { id: 'soil', name: 'Soil', type: 'resource' },
-      { id: 'sand', name: 'Sand', type: 'resource' },
-      { id: 'clay', name: 'Clay', type: 'resource' },
-      { id: 'wood', name: 'Wood', type: 'resource' },
-      { id: 'scrap_metal', name: 'Scrap Metal', type: 'resource' },
-      { id: 'water', name: 'Water', type: 'resource' },
-      { id: 'brick_ceb', name: 'Bricks', type: 'resource' },
-      { id: 'power_cube', name: 'Power Cube', type: 'item' },
-      { id: 'ceb_press', name: 'CEB Press', type: 'item' },
-      { id: 'water_well', name: 'Water Well', type: 'item' },
-      { id: 'storage_shed', name: 'Storage Shed', type: 'item' }
-    ];
-
-    for (const item of allItems) {
-      const count = this.state.inventory[item.id] || 0;
-      if (count > 0) {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = `inventory-item ${item.type}`;
-        const iconPath = this.getIconPath(item.id);
-        itemDiv.innerHTML = `
-          <div class="inventory-info">
-            <img class="inventory-icon" src="${iconPath}" alt="${item.name} icon" />
-            <div class="inventory-name">${item.name}</div>
-          </div>
-          <div class="inventory-count">${count}</div>
-        `;
-        this.inventoryList.appendChild(itemDiv);
-      }
+    this.writeHTML('inventory-list', `<div class="panel-heading">Stockpile <span>Materials & machines</span></div>` + Object.entries(this.state.inventory).filter(([, amount]) => amount > 0.001).map(([id, amount]) => {
+      const machine = !!machineDefinitions[id], tag = machine ? 'button' : 'div';
+      return `<${tag} ${machine ? `type="button" data-machine="${id}"` : ''} class="inventory-item ${machine ? 'item' : 'resource'}"><span class="inventory-info"><img class="inventory-icon" src="${this.getIconPath(id)}" alt=""/><span class="inventory-name">${escapeHTML(this.formatResourceLabel(id))}</span></span><span class="inventory-count">${this.quantity(amount)}</span></${tag}>`;
+    }).join(''));
+  }
+  private updateBuildQueue() {
+    this.writeHTML('build-queue', `<div class="panel-heading">Assembly queue <span>${this.state.buildQueue.length} pending</span></div>` + (this.state.buildQueue.length ? this.state.buildQueue.map((item, index) => {
+      const progress = Math.max(0, (1 - item.timeRemaining / item.totalTime) * 100);
+      return `<div class="queue-item ${index === 0 ? 'building' : 'queued'}"><div class="queue-header"><img class="queue-icon" src="${this.getIconPath(item.id)}" alt=""/><span class="queue-name">${escapeHTML(item.name)}</span><button type="button" class="cancel-btn" data-cancel="${index}" aria-label="Cancel ${escapeHTML(item.name)}">×</button></div><div class="queue-progress"><div class="progress-bar"><div class="progress-fill" style="width:${progress.toFixed(1)}%"></div></div><span class="queue-time">${Math.ceil(item.timeRemaining)}s</span></div></div>`;
+    }).join('') : '<div class="queue-empty">Choose a blueprint to assemble.</div>'));
+  }
+  private renderTechTree() {
+    const researched = new Set(this.state.researched ?? []); researched.add('tier0');
+    const firstIncomplete = techTree.find(tier => !researched.has(tier.id))?.id;
+    this.writeHTML('tech-tree', '<div class="panel-heading">Research <span>Open Source Ecology</span></div>' + techTree.map(tier => {
+      const status = researched.has(tier.id) ? 'complete' : tier.id === firstIncomplete ? 'current' : 'locked';
+      return `<section class="tech-tier ${status}"><header class="tech-tier-header"><span class="tech-tier-rank">${escapeHTML(tier.tier)} · ${status === 'complete' ? 'Complete' : status === 'current' ? 'In progress' : 'Locked'}</span><h3 class="tech-tier-title">${escapeHTML(tier.name)}</h3></header>${tier.sections.map(section => `<div class="tech-tier-section"><h4 class="tech-tier-section-title">${escapeHTML(section.label)}</h4><ul class="tech-tier-list">${section.items.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul></div>`).join('')}${(tier.notes ?? []).map(note => `<p class="tech-tier-note"><strong>${escapeHTML(note.label)}:</strong> ${escapeHTML(note.text)}</p>`).join('')}</section>`;
+    }).join(''));
+  }
+  private updateInspector() {
+    const entity = this.inspectorEntity; if (!entity) return; const definition = machineDefinitions[entity.id]; if (!definition) return;
+    this.setText('inspector-title', definition.name);
+    const progress = Math.min(100, (entity.progress ?? 0) / definition.operate.workTime * 100);
+    this.writeHTML('inspector-body', `<p class="machine-status">${escapeHTML(getMachineStatus(this.state, entity))}</p><div class="progress-bar"><div class="progress-fill" style="width:${progress.toFixed(1)}%"></div></div><p>${escapeHTML(definition.description)}</p><dl><dt>Inputs / batch</dt><dd>${escapeHTML(this.recipeText(definition.operate.inputs))}</dd><dt>Outputs / ${definition.operate.workTime}s</dt><dd>${escapeHTML(this.recipeText(definition.operate.outputs))}</dd><dt>Power</dt><dd>${definition.power.kind === 'hydraulic' ? `${definition.power.flow_gpm ?? 0} GPM demand · ${Math.round(entity.pressurePsi ?? 0)} PSI supplied` : definition.power.kind === 'manual' ? 'Hand powered' : 'No hydraulic connection needed'}</dd></dl>${entity.produced ? `<p class="machine-total">Produced: ${escapeHTML(this.recipeText(entity.produced))}</p>` : ''}`);
+  }
+  private updateHUD() {
+    for (const [selector, value] of [['[data-hud-health]', this.state.player.health], ['[data-hud-thirst]', this.state.player.thirst]] as const) {
+      const element = document.querySelector(selector); if (element) element.textContent = `${Math.round(value)}`;
     }
+    const objective = getObjective(this.state);
+    this.setText('objective-title', objective.title); this.setText('objective-detail', objective.detail);
+    const progress = document.getElementById('objective-progress'); if (progress) { progress.style.width = `${Math.min(100, objective.progress / objective.target * 100)}%`; progress.setAttribute('aria-valuenow', `${Math.round(objective.progress)}`); }
+    const working = this.state.placed.filter(entity => entity.status === 'working').length;
+    this.setText('production-summary', `${working}/${this.state.placed.filter(entity => entity.id !== 'hydraulic_hose').length} running · ${this.quantity(this.state.inventory.brick_ceb ?? 0)} earth bricks`);
+    this.updateHotbar(); this.updateBuildablesList(); this.updateInventoryList(); this.updateBuildQueue(); this.renderTechTree(); this.updateInspector();
   }
+  private addEvent(message: string) {
+    this.log.push(message); if (this.log.length > 30) this.log.shift();
+    this.writeHTML('event-log', `<div class="panel-heading">Activity</div><div class="event-log-content">${this.log.slice().reverse().map(event => `<div class="event-item">${escapeHTML(event)}</div>`).join('')}</div>`);
+  }
+  private saveGame() { const success = save(this.state, [...this.generatedChunks]); this.setText('save-status', success ? 'Autosaved' : 'Save unavailable'); return success; }
 
-  private cancelBuilding(index: number) {
-    if (index >= 0 && index < this.state.buildQueue.length) {
-      const item = this.state.buildQueue[index];
-
-      // Refund resources
-      const buildable = this.state.buildables.find(b => b.id === item.id);
-      if (buildable) {
-        for (const [resource, amount] of Object.entries(buildable.requirements)) {
-          this.state.inventory[resource] = (this.state.inventory[resource] || 0) + amount;
-        }
-      }
-
-      this.state.buildQueue.splice(index, 1);
-      this.addEvent(`Cancelled building ${item.name}`);
-      this.updateAllUI();
+  private ensureSurroundingChunks(x: number, y: number) {
+    const cx = Math.floor(x / this.chunkSize), cy = Math.floor(y / this.chunkSize); let changed = false;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const chunkX = cx + dx, chunkY = cy + dy, key = `${chunkX}:${chunkY}`; if (this.generatedChunks.has(key)) continue;
+      this.generatedChunks.add(key); this.generateChunk(chunkX, chunkY); changed = true;
+      const minX = chunkX * this.chunkSize, minY = chunkY * this.chunkSize;
+      this.state.bounds.minX = Math.min(this.state.bounds.minX, minX); this.state.bounds.minY = Math.min(this.state.bounds.minY, minY);
+      this.state.bounds.maxX = Math.max(this.state.bounds.maxX, minX + this.chunkSize - 1); this.state.bounds.maxY = Math.max(this.state.bounds.maxY, minY + this.chunkSize - 1);
     }
+    if (changed) { this.state.width = this.state.bounds.maxX - this.state.bounds.minX + 1; this.state.height = this.state.bounds.maxY - this.state.bounds.minY + 1; this.terrainDirty = true; this.entitiesDirty = true; }
   }
-
-  private initializeWorld() {
-    this.generatedChunks.clear();
-    this.ensuredSpawnResources = false;
-    this.state.resources = [];
-    this.state.width = this.chunkSize;
-    this.state.height = this.chunkSize;
-    this.state.bounds = {
-      minX: 0,
-      minY: 0,
-      maxX: this.chunkSize - 1,
-      maxY: this.chunkSize - 1
-    };
-
-    this.ensureSurroundingChunks(this.state.player.pos.x, this.state.player.pos.y, 1);
-    this.redrawGrid();
-  }
-
-  private ensureSurroundingChunks(tileX: number, tileY: number, chunkRadius: number) {
-    const centerChunkX = Math.floor(tileX / this.chunkSize);
-    const centerChunkY = Math.floor(tileY / this.chunkSize);
-
-    for (let cx = centerChunkX - chunkRadius; cx <= centerChunkX + chunkRadius; cx++) {
-      for (let cy = centerChunkY - chunkRadius; cy <= centerChunkY + chunkRadius; cy++) {
-        this.ensureChunk(cx, cy);
-      }
-    }
-  }
-
-  private ensureTileInWorld(x: number, y: number) {
-    this.ensureChunkForTile(x, y);
-    return this.isWithinBounds(x, y);
-  }
-
-  private ensureChunkForTile(tileX: number, tileY: number) {
-    const chunkX = Math.floor(tileX / this.chunkSize);
-    const chunkY = Math.floor(tileY / this.chunkSize);
-    this.ensureChunk(chunkX, chunkY);
-  }
-
-  private ensureChunk(chunkX: number, chunkY: number) {
-    const key = this.getChunkKey(chunkX, chunkY);
-    if (this.generatedChunks.has(key)) return;
-
-    this.generatedChunks.add(key);
-    const minTileX = chunkX * this.chunkSize;
-    const minTileY = chunkY * this.chunkSize;
-    const maxTileX = minTileX + this.chunkSize - 1;
-    const maxTileY = minTileY + this.chunkSize - 1;
-    const boundsChanged = this.expandWorldToIncludeArea(minTileX, minTileY, maxTileX, maxTileY);
-    this.generateChunk(chunkX, chunkY);
-    this.redrawEntities();
-    if (boundsChanged) {
-      this.redrawPlayer();
-    }
-  }
-
-  private expandWorldToIncludeArea(minX: number, minY: number, maxX: number, maxY: number) {
-    const bounds = this.state.bounds;
-    const newMinX = Math.min(bounds.minX, minX);
-    const newMinY = Math.min(bounds.minY, minY);
-    const newMaxX = Math.max(bounds.maxX, maxX);
-    const newMaxY = Math.max(bounds.maxY, maxY);
-
-    if (
-      newMinX === bounds.minX &&
-      newMinY === bounds.minY &&
-      newMaxX === bounds.maxX &&
-      newMaxY === bounds.maxY
-    ) {
-      return false;
-    }
-
-    this.state.bounds = { minX: newMinX, minY: newMinY, maxX: newMaxX, maxY: newMaxY };
-    this.state.width = newMaxX - newMinX + 1;
-    this.state.height = newMaxY - newMinY + 1;
-    this.redrawGrid();
-    return true;
-  }
-
-  private redrawGrid() {
-    if (!this.gridGraphics) return;
-
-    const widthPx = this.state.width * this.state.gridSize;
-    const heightPx = this.state.height * this.state.gridSize;
-
-    this.refreshGroundLayer(widthPx, heightPx);
-
-    this.gridGraphics.clear();
-    this.gridGraphics.lineStyle(1, 0x28323a, 1);
-
-    for (let x = 0; x <= this.state.width; x++) {
-      const px = x * this.state.gridSize;
-      this.gridGraphics.lineBetween(px, 0, px, heightPx);
-    }
-
-    for (let y = 0; y <= this.state.height; y++) {
-      const py = y * this.state.gridSize;
-      this.gridGraphics.lineBetween(0, py, widthPx, py);
-    }
-  }
-
-  private refreshGroundLayer(widthPx: number, heightPx: number) {
-    if (this.groundLayer) {
-      this.groundLayer.destroy();
-    }
-
-    const ground = this.add.tileSprite(0, 0, widthPx, heightPx, 'desert-ground');
-    ground.setOrigin(0, 0);
-    ground.setDepth(-2);
-
-    ground.setTileScale(1, 1);
-
-    this.groundLayer = ground;
-  }
-
   private generateChunk(chunkX: number, chunkY: number) {
-    const resourcePool: ResourceKind[] = [
-      'soil', 'soil', 'soil',
-      'sand', 'sand',
-      'clay', 'clay',
-      'wood', 'wood',
-      'scrap_metal',
-      'water'
-    ];
-
-    const rng = this.createChunkRandom(chunkX, chunkY);
-    const startX = chunkX * this.chunkSize;
-    const startY = chunkY * this.chunkSize;
-
-    for (let lx = 0; lx < this.chunkSize; lx++) {
-      for (let ly = 0; ly < this.chunkSize; ly++) {
-        const worldX = startX + lx;
-        const worldY = startY + ly;
-        const roll = rng();
-
-        if (roll < 0.25) {
-          const resourceType = resourcePool[Math.floor(rng() * resourcePool.length)];
-          const richness = 35 + Math.floor(rng() * 55);
-          this.addResourceNode(worldX, worldY, resourceType, richness);
-        } else if (roll < 0.32) {
-          // Low chance to sprinkle extra soil pockets for building
-          const richness = 45 + Math.floor(rng() * 40);
-          this.addResourceNode(worldX, worldY, 'soil', richness);
-        }
+    const random = this.createChunkRandom(chunkX, chunkY);
+    // Coherent veins and groves make the terrain legible, rather than scattering icons on every tile.
+    for (let patch = 0; patch < 5; patch++) {
+      const type = resourceKinds[Math.floor(random() * resourceKinds.length)], centerX = 2 + Math.floor(random() * 12), centerY = 2 + Math.floor(random() * 12);
+      const radius = type === 'water' ? 1.8 : type === 'wood' ? 2.4 : 2;
+      for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) {
+        if (Math.hypot(dx, dy) > radius || random() > 0.78) continue;
+        const x = chunkX * this.chunkSize + centerX + dx, y = chunkY * this.chunkSize + centerY + dy;
+        if (Math.abs(x - 8) + Math.abs(y - 8) < 2) continue; this.addResourceNode(x, y, type, 75 + Math.floor(random() * 125));
       }
     }
-
-    const spawnChunkX = Math.floor(this.state.player.pos.x / this.chunkSize);
-    const spawnChunkY = Math.floor(this.state.player.pos.y / this.chunkSize);
-
-    if (!this.ensuredSpawnResources && chunkX === spawnChunkX && chunkY === spawnChunkY) {
-      this.seedSpawnResources();
-      this.ensuredSpawnResources = true;
-    }
   }
-
   private seedSpawnResources() {
     const spawn = this.state.player.pos;
-    const guaranteed: { type: ResourceKind; dx: number; dy: number; richness: number }[] = [
-      { type: 'soil', dx: -1, dy: 0, richness: 80 },
-      { type: 'sand', dx: 1, dy: 0, richness: 70 },
-      { type: 'clay', dx: 0, dy: -1, richness: 70 },
-      { type: 'wood', dx: 0, dy: 1, richness: 65 },
-      { type: 'scrap_metal', dx: 2, dy: 0, richness: 60 },
-      { type: 'water', dx: 0, dy: 2, richness: 60 }
-    ];
-
-    for (const { type, dx, dy, richness } of guaranteed) {
-      const tileX = spawn.x + dx;
-      const tileY = spawn.y + dy;
-      this.addResourceNode(tileX, tileY, type, richness, true);
-    }
+    const nodes: [ResourceKind, number, number][] = [['wood', -3, -2], ['wood', -4, -2], ['scrap_metal', 4, 0], ['scrap_metal', 4, 1], ['soil', -3, 3], ['sand', 1, 4], ['clay', 3, -3], ['water', -5, 2], ['water', -5, 3]];
+    this.state.resources = this.state.resources.filter(node => Math.abs(node.pos.x - spawn.x) + Math.abs(node.pos.y - spawn.y) > 2);
+    for (const [type, dx, dy] of nodes) this.addResourceNode(spawn.x + dx, spawn.y + dy, type, 180, true);
   }
-
-  private addResourceNode(
-    tileX: number,
-    tileY: number,
-    type: ResourceKind,
-    amount: number,
-    overwrite = false
-  ) {
-    const existing = this.state.resources.find(r => r.pos.x === tileX && r.pos.y === tileY);
-
-    if (existing) {
-      if (overwrite) {
-        existing.type = type;
-        existing.amount = amount;
-        existing.maxAmount = Math.max(existing.maxAmount, amount);
-      }
-      return;
-    }
-
-    this.state.resources.push({
-      pos: { x: tileX, y: tileY },
-      type,
-      amount,
-      maxAmount: amount
-    });
+  private addResourceNode(x: number, y: number, type: ResourceKind, amount: number, overwrite = false) {
+    const existing = this.state.resources.find(node => node.pos.x === x && node.pos.y === y);
+    if (existing) { if (overwrite) { existing.type = type; existing.amount = amount; existing.maxAmount = amount; } return; }
+    this.state.resources.push({ type, amount, maxAmount: amount, pos: { x, y } });
   }
-
-  private getChunkKey(x: number, y: number) {
-    return `${x}:${y}`;
-  }
-
   private createChunkRandom(chunkX: number, chunkY: number) {
-    const x = chunkX | 0;
-    const y = chunkY | 0;
-    let seed = (Math.imul(x, 374761393) ^ Math.imul(y, 668265263)) >>> 0;
-    if (seed === 0) {
-      seed = 0x9e3779b9;
-    }
-    let state = seed;
-    return () => {
-      state += 0x6D2B79F5;
-      let t = state;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+    let seed = (Math.imul(chunkX, 374761393) ^ Math.imul(chunkY, 668265263) ^ 0x9e3779b9) >>> 0;
+    return () => { seed += 0x6D2B79F5; let t = seed; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   }
-
+  private redrawGrid() {
+    const { bounds, gridSize } = this.state;
+    const view = this.cameras.main.worldView;
+    const minX = Math.max(bounds.minX, Math.floor(view.x / gridSize) - 2), minY = Math.max(bounds.minY, Math.floor(view.y / gridSize) - 2);
+    const maxX = Math.min(bounds.maxX + 1, Math.ceil(view.right / gridSize) + 2), maxY = Math.min(bounds.maxY + 1, Math.ceil(view.bottom / gridSize) + 2);
+    const x = minX * gridSize, y = minY * gridSize;
+    this.gridGraphics.clear().lineStyle(1, 0x89816d, 0.17);
+    for (let gx = minX; gx <= maxX; gx++) this.gridGraphics.lineBetween(gx * gridSize, y, gx * gridSize, maxY * gridSize);
+    for (let gy = minY; gy <= maxY; gy++) this.gridGraphics.lineBetween(x, gy * gridSize, maxX * gridSize, gy * gridSize);
+    this.terrainDirty = false;
+  }
+  private updateGround() {
+    const view = this.cameras.main.worldView;
+    const width = Math.ceil(view.width + 256), height = Math.ceil(view.height + 256);
+    // The repeated terrain is viewport-sized, so exploring never allocates a map-sized canvas.
+    if (width !== this.groundWidth || height !== this.groundHeight) {
+      this.groundLayer.setSize(width, height); this.groundWidth = width; this.groundHeight = height;
+    }
+    const x = Math.floor(view.x - 128), y = Math.floor(view.y - 128);
+    this.groundLayer.setPosition(x, y).setTilePosition(x, y);
+    if (this.gridGraphics.visible) this.redrawGrid();
+  }
   private redrawEntities() {
-    // clear old sprites
-    this.children.list.filter(o => (o as any).isEntity).forEach(o => o.destroy());
-    this.children.list.filter(o => (o as any).isResource).forEach(o => o.destroy());
-
-    // Draw placed entities
-    for (const e of this.state.placed) {
-      const textureKey = this.getItemTextureKey(e.id);
-      if (!textureKey) continue;
-
-      const entitySprite = this.add.image(
-        this.worldToPixelCenterX(e.pos.x),
-        this.worldToPixelCenterY(e.pos.y),
-        textureKey
-      );
-      entitySprite.setDepth(1);
-      entitySprite.setOrigin(0.5, 0.5);
-      entitySprite.setScale(0.8);
-      entitySprite.setData('tileX', e.pos.x);
-      entitySprite.setData('tileY', e.pos.y);
-      entitySprite.setTint(e.powered ? 0xa8d0ff : 0xffffff);
-      (entitySprite as any).isEntity = true;
+    for (const [entity, sprite] of this.entitySprites) if (!this.state.placed.includes(entity)) { sprite.destroy(); this.entitySprites.delete(entity); }
+    for (const entity of this.state.placed) if (!this.entitySprites.has(entity)) {
+      this.entitySprites.set(entity, this.add.image(this.worldToPixelCenterX(entity.pos.x), this.worldToPixelCenterY(entity.pos.y), `item-${entity.id}`).setDisplaySize(46, 46).setDepth(2));
     }
-
-    // Draw resources
-    for (const resource of this.state.resources) {
-      if (resource.amount > 0) {
-        const textureKey = this.getResourceTextureKey(resource.type);
-        if (!textureKey) continue;
-
-        const resourceSprite = this.add.image(
-          this.worldToPixelCenterX(resource.pos.x),
-          this.worldToPixelCenterY(resource.pos.y),
-          textureKey
-        );
-        const ratio = Phaser.Math.Clamp(resource.amount / resource.maxAmount, 0.25, 1);
-        resourceSprite.setScale(0.6 + ratio * 0.5);
-        resourceSprite.setDepth(0);
-        resourceSprite.setOrigin(0.5, 0.5);
-        resourceSprite.setData('tileX', resource.pos.x);
-        resourceSprite.setData('tileY', resource.pos.y);
-        (resourceSprite as any).isResource = true;
-      }
+    const live = new Set<string>();
+    for (const node of this.state.resources) {
+      if (node.amount <= 0) continue; const key = keyAt(node.pos); live.add(key); let sprite = this.resourceSprites.get(key);
+      if (!sprite) { sprite = this.add.image(this.worldToPixelCenterX(node.pos.x), this.worldToPixelCenterY(node.pos.y), `resource-${node.type}`).setDepth(0); this.resourceSprites.set(key, sprite); }
+      sprite.setTexture(`resource-${node.type}`);
+      const size = node.type === 'wood' || node.type === 'water' ? 48 : 34 + 10 * Math.min(1, node.amount / node.maxAmount);
+      sprite.setDisplaySize(size, size).setAlpha(0.65 + 0.35 * Math.min(1, node.amount / node.maxAmount));
     }
+    for (const [key, sprite] of this.resourceSprites) if (!live.has(key)) { sprite.destroy(); this.resourceSprites.delete(key); }
+    this.entitiesDirty = false;
   }
-
-  private getItemTextureKey(id: string) {
-    if (id in this.itemTexturePaths) {
-      return `item-${id as BuildableId}`;
-    }
-    return undefined;
-  }
-
-  private getResourceTextureKey(id: string) {
-    if (id in this.resourceTexturePaths) {
-      return `resource-${id as ResourceKind}`;
-    }
-    return undefined;
-  }
-
-  private getIconPath(id: string) {
-    return this.inventoryIconPaths[id] ?? '/images/resources/soil.svg';
-  }
-
-  private movePlayer(dx: number, dy: number) {
-    this.movementPath = [];
-    this.movementAccum = 0;
-    const newX = this.state.player.pos.x + dx;
-    const newY = this.state.player.pos.y + dy;
-
-    if (!this.ensureTileInWorld(newX, newY)) return;
-
-    this.updatePlayerDirection(dx, dy);
-    this.state.player.pos.x = newX;
-    this.state.player.pos.y = newY;
-    this.ensureSurroundingChunks(newX, newY, 1);
-    this.redrawPlayer();
-    this.collectResource();
-  }
-
-  private findResourceAt(x: number, y: number) {
-    return this.state.resources.find(r => r.pos.x === x && r.pos.y === y && r.amount > 0);
-  }
-
-  private collectResource() {
-    const playerPos = this.state.player.pos;
-    this.ensureChunkForTile(playerPos.x, playerPos.y);
-    const resource = this.findResourceAt(playerPos.x, playerPos.y);
-
-    if (!resource) return false;
-
-    const collected = Math.min(5, resource.amount); // Collect up to 5 units
-    resource.amount -= collected;
-    this.state.inventory[resource.type] = (this.state.inventory[resource.type] || 0) + collected;
-
-    const label = this.formatResourceLabel(resource.type);
-    this.addEvent(`Collected ${collected} ${label} (${resource.amount} remaining)`);
-
-    // If resource is depleted, remove it
-    if (resource.amount <= 0) {
-      this.state.resources = this.state.resources.filter(r => r !== resource);
-      this.addEvent(`${label} deposit depleted`);
-    }
-
-    this.redrawEntities();
-    this.updateAllUI();
-    return true;
-  }
-
-  private drinkWater() {
-    if (this.state.inventory.water > 0) {
-      this.state.inventory.water--;
-      this.state.player.thirst = Math.min(100, this.state.player.thirst + 25);
-      this.addEvent(`Drank water! Thirst restored to ${Math.round(this.state.player.thirst)}%`);
-    } else {
-      this.addEvent('No water available!');
-    }
-  }
-
-  private redrawPlayer() {
-    const x = this.worldToPixelCenterX(this.state.player.pos.x);
-    const y = this.worldToPixelCenterY(this.state.player.pos.y);
-
-    if (!this.playerSprite) {
-      const container = this.add.container(x, y);
-      container.setDepth(10);
-
-      const chassis = this.add.rectangle(0, 0, 24, 12, 0x3f9e58);
-      const cargoBed = this.add.rectangle(-8, -2, 14, 10, 0x4bbf6d);
-      const cabin = this.add.rectangle(8, -4, 10, 10, 0x2d7c3a);
-      const window = this.add.rectangle(9, -6, 6, 4, 0xe8ffe9);
-      const light = this.add.circle(14, 0, 2, 0xcdee8a);
-      const frontWheel = this.add.circle(-8, 6, 4, 0x111111);
-      const rearWheel = this.add.circle(8, 6, 4, 0x111111);
-
-      container.add([chassis, cargoBed, cabin, window, light, frontWheel, rearWheel]);
-
-      this.playerSprite = container;
-      (container as any).isPlayer = true;
-
-      this.cameras.main.startFollow(container, true, 0.2, 0.2);
-      this.cameras.main.setRoundPixels(true);
-      this.cameras.main.centerOn(x, y);
-    }
-
-    this.playerSprite!.setPosition(x, y);
-    this.updatePlayerSpriteOrientation();
-  }
-
-  private updatePlayerDirection(dx: number, dy: number) {
-    if (dx === 0 && dy === 0) return;
-
-    if (dx !== 0) {
-      this.playerDirection = dx > 0 ? 'right' : 'left';
-    } else {
-      this.playerDirection = dy > 0 ? 'down' : 'up';
-    }
-
-    this.updatePlayerSpriteOrientation();
-  }
-
-  private updatePlayerSpriteOrientation() {
-    if (!this.playerSprite) return;
-
-    const sprite = this.playerSprite;
-    sprite.setScale(1, 1);
-
-    switch (this.playerDirection) {
-      case 'left':
-        sprite.setAngle(0);
-        sprite.setScale(-1, 1);
-        break;
-      case 'right':
-        sprite.setAngle(0);
-        break;
-      case 'up':
-        sprite.setAngle(-90);
-        break;
-      case 'down':
-        sprite.setAngle(90);
-        break;
-    }
-  }
-
-  private updateHUD() {
-    const health = Math.round(this.state.player.health);
-    const thirst = Math.round(this.state.player.thirst);
-
-    if (this.hudHealthValue) {
-      this.hudHealthValue.textContent = `${health}`;
-    }
-
-    if (this.hudThirstValue) {
-      this.hudThirstValue.textContent = `${thirst}`;
-    }
-
-    // Update all UI elements
-    this.updateAllUI();
-  }
-
-  private updateAllUI() {
-    this.updateBuildablesList();
-    this.updateBuildQueue();
-    this.updateInventoryList();
-    this.updateHotbar();
-  }
-
-  update(t: number, dtMs: number) {
-    hydraulicsSystem(this.state);
-    craftingSystem(this.state, dtMs / 1000, (message) => this.addEvent(message));
-    this.updateSurvival(dtMs / 1000);
-    this.processBuildQueue(dtMs / 1000);
-    this.updateMovement(dtMs / 1000);
-
-    // reflect powered state by tinting
-    for (const s of this.children.list) {
-      if ((s as any).isEntity) {
-        const sprite = s as Phaser.GameObjects.Image;
-        const tileX = sprite.getData('tileX');
-        const tileY = sprite.getData('tileY');
-        if (typeof tileX !== 'number' || typeof tileY !== 'number') continue;
-        const ent = this.state.placed.find(e => e.pos.x === tileX && e.pos.y === tileY);
-        sprite.setTint(ent && ent.powered ? 0xa8d0ff : 0xffffff);
-      }
-    }
-  }
-
-  private processBuildQueue(dt: number) {
-    // Only process the first item in the queue (one at a time)
-    if (this.state.buildQueue.length > 0) {
-      const item = this.state.buildQueue[0];
-      item.timeRemaining -= dt;
-      
-      if (item.timeRemaining <= 0) {
-        // Building completed
-        this.addEvent(`${item.name} construction completed!`);
-        
-        // Add to inventory or place in world
-        if (item.id === 'power_cube' || item.id === 'ceb_press') {
-          // These are placed items, add to inventory for manual placement
-          this.state.inventory[item.id] = (this.state.inventory[item.id] || 0) + 1;
-        } else {
-          // Other items go directly to inventory
-          this.state.inventory[item.id] = (this.state.inventory[item.id] || 0) + 1;
+  private drawMachineStatus() {
+    this.statusGraphics.clear(); this.networkGraphics.clear();
+    for (const entity of this.state.placed) {
+      const definition = machineDefinitions[entity.id]; if (!definition) continue;
+      const x = this.worldToPixelCenterX(entity.pos.x), y = this.worldToPixelCenterY(entity.pos.y);
+      if (entity.powerSource && (definition.power.kind === 'hydraulic' || entity.id === 'hydraulic_hose' || definition.provides?.hydraulic)) {
+        for (const other of this.state.placed) {
+          if (other === entity || other.powerSource !== entity.powerSource || Math.abs(entity.pos.x - other.pos.x) + Math.abs(entity.pos.y - other.pos.y) !== 1) continue;
+          if (entity.id !== 'hydraulic_hose' && other.id !== 'hydraulic_hose' && !definition.provides?.hydraulic && !machineDefinitions[other.id]?.provides?.hydraulic) continue;
+          this.networkGraphics.lineStyle(3, entity.powered ? 0xe4b55d : 0x696558, 0.85).lineBetween(x, y, this.worldToPixelCenterX(other.pos.x), this.worldToPixelCenterY(other.pos.y));
         }
-        
-        // Remove from queue
-        this.state.buildQueue.shift();
-        
-        // Update UI
-        this.updateAllUI();
+      }
+      if (entity.id === 'hydraulic_hose') continue;
+      const color = entity.status === 'working' ? 0xaad35b : entity.status === 'complete' ? 0x72cabc : entity.status === 'no_power' || entity.status === 'no_fuel' ? 0xd75e42 : entity.status === 'missing_inputs' || entity.status === 'no_resource' ? 0xe4b55d : 0x859788;
+      this.statusGraphics.fillStyle(0x17201b).fillCircle(x + 17, y - 18, 4.5).fillStyle(color).fillCircle(x + 17, y - 18, 3);
+      if (entity.status === 'working' && definition.operate.workTime > 0) {
+        this.statusGraphics.fillStyle(0x192119, 0.9).fillRoundedRect(x - 19, y + 18, 38, 4, 1);
+        this.statusGraphics.fillStyle(0xaad35b).fillRect(x - 18, y + 19, Math.min(36, 36 * (entity.progress ?? 0) / definition.operate.workTime), 2);
+        const phase = ((this.state.elapsed ?? 0) * 1.8 + entity.pos.x * 0.31) % 1;
+        if (entity.id === 'kiln' || entity.id === 'power_cube') {
+          this.statusGraphics.fillStyle(0xd8d3be, 0.22 * (1 - phase)).fillCircle(x + 10, y - 23 - phase * 12, 2 + phase * 3);
+          if (entity.id === 'kiln') this.statusGraphics.fillStyle(0xf2a346, 0.5 + 0.4 * Math.sin(phase * Math.PI)).fillRect(x - 7, y + 6, 12, 3);
+        } else if (['machine_shop', 'cnc_torch', 'hydraulics_bench'].includes(entity.id)) {
+          this.statusGraphics.lineStyle(1, 0xffd77d, 0.7 * (1 - phase)).lineBetween(x + 1, y + 1, x + 5 + phase * 5, y + 3 + phase * 3);
+          this.statusGraphics.lineBetween(x + 1, y + 1, x - 3 - phase * 4, y - 2 - phase * 4);
+        } else {
+          const rotation = phase * Math.PI * 2;
+          this.statusGraphics.lineStyle(2, 0xc2c7a1, 0.8).lineBetween(x - 4, y + 2, x - 4 + Math.cos(rotation) * 5, y + 2 + Math.sin(rotation) * 5);
+        }
       }
     }
   }
-
-  private updateSurvival(dt: number) {
-    // Thirst decreases much more gradually (about 3 drinks per day)
-    // Assuming 1 day = 24 minutes of real time, thirst should drop from 100 to 0 in 8 minutes
-    // So 100 points over 480 seconds = 0.208 points per second
-    this.state.player.thirst = Math.max(0, this.state.player.thirst - dt * 0.2);
-    
-    // Auto-drink if thirst is below 50% and player has water
-    if (this.state.player.thirst < 50 && this.state.inventory.water > 0) {
-      this.state.inventory.water--;
-      this.state.player.thirst = Math.min(100, this.state.player.thirst + 25);
-      this.addEvent(`Auto-drank water! Thirst: ${Math.round(this.state.player.thirst)}%`);
+  private updateGhost() {
+    this.ghostGraphics.clear(); this.ghostSprite.setVisible(false); this.destinationGraphics.clear();
+    if (this.gatherTarget || this.movementPath.length) {
+      const target = this.gatherTarget ?? this.movementPath[this.movementPath.length - 1];
+      this.destinationGraphics.lineStyle(2, this.gatherTarget ? 0xe4b55d : 0xaad35b, 0.9).strokeCircle(this.worldToPixelCenterX(target.x), this.worldToPixelCenterY(target.y), 18);
     }
-    
-    // Health decreases if thirst is too low
-    if (this.state.player.thirst < 20) {
-      this.state.player.health = Math.max(0, this.state.player.health - dt * 5);
-    }
-    
-    // Energy decreases over time
-    this.state.player.energy = Math.max(0, this.state.player.energy - dt * 0.1);
-    
-    // Game over if health reaches 0
-    if (this.state.player.health <= 0) {
-      this.addEvent('Game Over! You died of thirst.');
-      // Could restart or show game over screen
-    }
+    if (this.interactionMode !== 'build' || this.paused) return;
+    const pointer = this.input.activePointer, world = pointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
+    const x = this.pixelToTileX(world.x), y = this.pixelToTileY(world.y), valid = this.placementValid(x, y), px = this.worldToPixelCenterX(x), py = this.worldToPixelCenterY(y);
+    this.ghostSprite.setTexture(`item-${this.state.selected}`).setDisplaySize(46, 46).setPosition(px, py).setVisible(true).setTint(valid ? 0xffffff : 0xff8675);
+    this.ghostGraphics.lineStyle(2, valid ? 0xaad35b : 0xe57053, 0.95).strokeRect(px - 23, py - 23, 46, 46);
+    this.ghostGraphics.fillStyle(valid ? 0xaad35b : 0xe57053, 0.12).fillRect(px - 23, py - 23, 46, 46);
   }
-
-  private setMovementTarget(tileX: number, tileY: number) {
-    if (!this.ensureTileInWorld(tileX, tileY)) return;
-
-    const current = this.state.player.pos;
-    if (current.x === tileX && current.y === tileY) {
-      this.movementPath = [];
-      this.movementAccum = 0;
-      return;
-    }
-
-    const path: { x: number; y: number }[] = [];
-    let cx = current.x;
-    let cy = current.y;
-    const stepX = Math.sign(tileX - cx);
-    const stepY = Math.sign(tileY - cy);
-
-    while (cx !== tileX) {
-      cx += stepX;
-      if (!this.ensureTileInWorld(cx, cy)) break;
-      path.push({ x: cx, y: cy });
-    }
-
-    while (cy !== tileY) {
-      cy += stepY;
-      if (!this.ensureTileInWorld(cx, cy)) break;
-      path.push({ x: cx, y: cy });
-    }
-
-    this.movementPath = path;
-    this.movementAccum = 0;
-
-    if (path.length > 0) {
-      const last = path[path.length - 1];
-      this.ensureSurroundingChunks(last.x, last.y, 1);
-    }
+  private redrawPlayer() { this.playerSprite.setPosition(this.worldToPixelCenterX(this.state.player.pos.x), this.worldToPixelCenterY(this.state.player.pos.y)); }
+  private findResourceAt(x: number, y: number) { return this.state.resources.find(node => node.pos.x === x && node.pos.y === y && node.amount > 0); }
+  private collectResource() {
+    const node = this.findResourceAt(this.state.player.pos.x, this.state.player.pos.y); if (!node) { this.gatherTarget = undefined; return; }
+    const collected = Math.min(getCollectionAmount(this.state), node.amount); node.amount -= collected;
+    this.state.inventory[node.type] = (this.state.inventory[node.type] ?? 0) + collected; this.entitiesDirty = true;
+    if (node.amount <= 0) { this.addEvent(`${this.formatResourceLabel(node.type)} deposit depleted.`); this.gatherTarget = undefined; }
   }
-
+  private drinkWater() {
+    if ((this.state.inventory.water ?? 0) < 1) { this.addEvent('The stockpile needs water. Gather from a pond or build a Water Well.'); return; }
+    this.state.inventory.water -= 1; this.state.player.thirst = Math.min(100, this.state.player.thirst + 25); this.updateHUD();
+  }
+  private setMovementTarget(x: number, y: number) {
+    const blocked = new Set(this.state.placed.filter(entity => entity.id !== 'hydraulic_hose').map(entity => `${entity.pos.x},${entity.pos.y}`));
+    this.movementAccum = 0; this.movementPath = findPath(this.state.player.pos, { x, y }, blocked);
+    if (!this.movementPath.length && (this.state.player.pos.x !== x || this.state.player.pos.y !== y)) { this.gatherTarget = undefined; this.addEvent('No clear route. Drive around the installed machines.'); }
+  }
   private updateMovement(dt: number) {
-    if (this.movementPath.length === 0) return;
-
-    const tilesPerSecond = 4;
-    const stepTime = 1 / tilesPerSecond;
+    const down = (key: string, touch: string) => this.keys[key]?.isDown || this.touchAction === touch;
+    const dx = down('D', 'right') || down('RIGHT', 'right') ? 1 : down('A', 'left') || down('LEFT', 'left') ? -1 : 0;
+    const dy = down('S', 'down') || down('DOWN', 'down') ? 1 : down('W', 'up') || down('UP', 'up') ? -1 : 0;
+    if (dx || dy) { this.movementPath = []; this.gatherTarget = undefined; }
+    if (!dx && !dy && !this.movementPath.length) { this.movementAccum = 0; return; }
     this.movementAccum += dt;
-
-    let moved = false;
-    while (this.movementAccum >= stepTime && this.movementPath.length > 0) {
-      this.movementAccum -= stepTime;
-      const next = this.movementPath.shift()!;
-      const currentX = this.state.player.pos.x;
-      const currentY = this.state.player.pos.y;
-      this.updatePlayerDirection(next.x - currentX, next.y - currentY);
-      this.state.player.pos.x = next.x;
-      this.state.player.pos.y = next.y;
-      this.ensureSurroundingChunks(next.x, next.y, 1);
-      moved = true;
-    }
-
-    if (moved) {
-      this.redrawPlayer();
-    }
-
-    if (this.movementPath.length === 0) {
-      this.movementAccum = 0;
-      this.collectResource();
+    while (this.movementAccum >= 1 / 6) {
+      this.movementAccum -= 1 / 6;
+      const next = dx || dy ? { x: this.state.player.pos.x + dx, y: this.state.player.pos.y + (dx ? 0 : dy) } : this.movementPath.shift(); if (!next) break;
+      if (this.state.placed.some(entity => entity.id !== 'hydraulic_hose' && entity.pos.x === next.x && entity.pos.y === next.y)) { this.movementPath = []; this.gatherTarget = undefined; this.movementAccum = 0; break; }
+      const old = this.state.player.pos; this.playerSprite.setAngle(next.x > old.x ? 0 : next.x < old.x ? 180 : next.y > old.y ? 90 : -90);
+      this.state.player.pos = next; this.ensureSurroundingChunks(next.x, next.y); this.redrawPlayer();
     }
   }
-
-  private setupOverlayToggles() {
-    const configs: { name: string; buttonId: string; targetSelector: string }[] = [
-      { name: 'Buildables', buttonId: 'toggle-buildables', targetSelector: '#buildables-list' },
-      { name: 'Inventory', buttonId: 'toggle-inventory', targetSelector: '#inventory-list' },
-      { name: 'Event Log', buttonId: 'toggle-event-log', targetSelector: '#event-log' },
-      { name: 'Build Queue', buttonId: 'toggle-build-queue', targetSelector: '#build-queue' },
-      { name: 'Tech Tree', buttonId: 'toggle-tech-tree', targetSelector: '#tech-tree' }
-    ];
-
-    this.overlayToggles = [];
-
-    for (const config of configs) {
-      const buttonEl = document.getElementById(config.buttonId);
-      const targetEl = document.querySelector(config.targetSelector);
-
-      if (!(buttonEl instanceof HTMLButtonElement) || !(targetEl instanceof HTMLElement)) {
-        continue;
-      }
-
-      const toggle = { button: buttonEl, element: targetEl, name: config.name };
-      buttonEl.textContent = config.name;
-      buttonEl.setAttribute('aria-controls', targetEl.id);
-      buttonEl.addEventListener('click', () => {
-        toggle.element.classList.toggle('overlay-hidden');
-        this.updateOverlayToggleButton(toggle);
-      });
-
-      this.overlayToggles.push(toggle);
-      this.updateOverlayToggleButton(toggle);
+  private processBuildQueue(dt: number) {
+    let remaining = dt;
+    while (remaining > 0 && this.state.buildQueue.length) {
+      const item = this.state.buildQueue[0], step = Math.min(item.timeRemaining, remaining); item.timeRemaining -= step; remaining -= step;
+      if (item.timeRemaining > 0) break;
+      this.state.inventory[item.id] = (this.state.inventory[item.id] ?? 0) + 1; this.state.buildQueue.shift(); this.addEvent(`${item.name} assembled. Select it in the hotbar to place.`);
     }
   }
-
-  private updateOverlayToggleButton(toggle: { button: HTMLButtonElement; element: HTMLElement; name: string }) {
-    const isHidden = toggle.element.classList.contains('overlay-hidden');
-    toggle.button.dataset.active = (!isHidden).toString();
-    toggle.button.setAttribute('aria-pressed', (!isHidden).toString());
-    toggle.button.setAttribute('aria-expanded', (!isHidden).toString());
-    toggle.button.title = `${isHidden ? 'Show' : 'Hide'} ${toggle.name}`;
+  private updateSurvival(dt: number) {
+    this.state.player.thirst = Math.max(0, this.state.player.thirst - dt * 0.045);
+    if (this.state.player.thirst < 50 && (this.state.inventory.water ?? 0) >= 1) this.drinkWater();
+    this.state.player.health = this.state.player.thirst < 10 ? Math.max(0, this.state.player.health - dt * 0.1) : Math.min(100, this.state.player.health + dt * 0.15);
   }
-
-  private setupInteractionModeToggle() {
-    const button = document.getElementById('mode-toggle');
-    this.modeToggleButton = button instanceof HTMLButtonElement ? button : undefined;
-    if (!this.modeToggleButton) return;
-
-    const prefersTouch = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia('(pointer: coarse)').matches
-      : false;
-
-    this.interactionMode = prefersTouch ? 'move' : 'build';
-    this.updateModeToggleButton();
-
-    this.modeToggleButton.addEventListener('click', () => {
-      this.interactionMode = this.interactionMode === 'move' ? 'build' : 'move';
-      this.updateModeToggleButton();
-    });
-  }
-
-  private updateModeToggleButton() {
-    if (!this.modeToggleButton) return;
-
-    this.modeToggleButton.dataset.mode = this.interactionMode;
-    this.modeToggleButton.textContent = this.interactionMode === 'move' ? 'Move Mode' : 'Build Mode';
-    this.modeToggleButton.setAttribute('aria-pressed', this.interactionMode === 'move' ? 'true' : 'false');
-    this.modeToggleButton.title = this.interactionMode === 'move'
-      ? 'Tap tiles to walk the player. Tap to switch back to building.'
-      : 'Tap tiles to place or remove builds. Tap to switch back to movement.';
-  }
-
-  private formatResourceLabel(id: string) {
-    return id
-      .split('_')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  }
-
-  private isWithinBounds(x: number, y: number) {
-    return (
-      x >= this.state.bounds.minX &&
-      y >= this.state.bounds.minY &&
-      x <= this.state.bounds.maxX &&
-      y <= this.state.bounds.maxY
-    );
+  update(_time: number, dtMs: number) {
+    const dt = Math.min(dtMs / 1000, 0.25);
+    if (!this.paused) {
+      craftingSystem(this.state, dt, message => this.addEvent(message));
+      this.processBuildQueue(dt); this.updateSurvival(dt); this.updateMovement(dt);
+      const onTarget = this.gatherTarget && !this.movementPath.length && keyAt(this.gatherTarget) === keyAt(this.state.player.pos);
+      if (onTarget || this.keys.SPACE?.isDown || this.touchAction === 'gather') { this.gatherAccum += dt; if (this.gatherAccum >= 0.5) { this.gatherAccum = 0; this.collectResource(); } } else this.gatherAccum = 0;
+    }
+    this.uiAccum += dt; this.saveAccum += dt;
+    if (this.uiAccum >= 0.3) { this.uiAccum = 0; this.updateHUD(); this.redrawEntities(); }
+    if (this.saveAccum >= 10) { this.saveAccum = 0; this.saveGame(); }
+    this.updateGround();
+    if (this.terrainDirty) this.redrawGrid(); if (this.entitiesDirty) this.redrawEntities();
+    this.drawMachineStatus(); this.updateGhost();
   }
 }

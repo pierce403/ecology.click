@@ -1,13 +1,14 @@
 {
   "id": "power_cube",
   "name": "Power Cube",
+  "description": "Wood-gas engine and hydraulic pump. 1 wood fuels 45 seconds; 20 GPM at 2,300 PSI.",
+  "tier": 2,
+  "buildTime": 7,
   "build": {
     "parts": {
-      "engine_small": 1,
-      "hydraulic_pump": 1,
-      "reservoir": 1,
-      "hoses": 2,
-      "bolts": 12
+      "steel_plate": 6,
+      "fastener_pack": 4,
+      "wood": 6
     }
   },
   "power": {
@@ -17,9 +18,14 @@
   },
   "operate": {
     "inputs": {},
-    "outputs": {}
+    "outputs": {},
+    "workTime": 45
   },
   "provides": {
     "hydraulic": true
+  },
+  "fuel": {
+    "item": "wood",
+    "seconds": 45
   }
 }

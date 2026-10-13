@@ -1,0 +1,31 @@
+{
+  "id": "scrap_drill",
+  "name": "Salvage Drill",
+  "description": "Place directly on a scrap deposit. Hydraulic cutting recovers 3 metal per batch and depletes the deposit.",
+  "tier": 2,
+  "buildTime": 6,
+  "build": {
+    "parts": {
+      "steel_plate": 5,
+      "fastener_pack": 3,
+      "hydraulic_pack": 1
+    }
+  },
+  "power": {
+    "kind": "hydraulic",
+    "requires": "power_cube",
+    "flow_gpm": 4,
+    "pressure_psi": 2000
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {
+      "scrap_metal": 3
+    },
+    "workTime": 4
+  },
+  "resource": {
+    "type": "scrap_metal",
+    "amount": 3
+  }
+}

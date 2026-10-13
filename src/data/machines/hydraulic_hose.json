@@ -1,0 +1,20 @@
+{
+  "id": "hydraulic_hose",
+  "name": "Hydraulic Hose",
+  "description": "Connect adjacent hoses from a Power Cube to hydraulic machinery. Hoses do not consume flow.",
+  "tier": 2,
+  "buildTime": 1,
+  "build": {
+    "parts": {
+      "fastener_pack": 1
+    }
+  },
+  "power": {
+    "kind": "link"
+  },
+  "operate": {
+    "inputs": {},
+    "outputs": {},
+    "workTime": 4
+  }
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
+<linearGradient id="metal" x1="0" x2="0.5" y1="0" y2="1"><stop stop-color="#98a69a"/><stop offset=".4" stop-color="#6e7a72"/><stop offset="1" stop-color="#44524d"/></linearGradient>
+<linearGradient id="olive" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a2a175"/><stop offset=".35" stop-color="#777e51"/><stop offset="1" stop-color="#4a583d"/></linearGradient>
+<linearGradient id="copper" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#cf9771"/><stop offset="1" stop-color="#875740"/></linearGradient>
+<linearGradient id="roof" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8b9887"/><stop offset="1" stop-color="#465b51"/></linearGradient>
+<linearGradient id="water" x1="0" x2=".6" y1="0" y2="1"><stop stop-color="#89bec0"/><stop offset=".45" stop-color="#477e8b"/><stop offset="1" stop-color="#244f62"/></linearGradient>
+<pattern id="hazard" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#c8af59"/><rect width="4" height="8" fill="#363b2e"/></pattern>
+</defs>
+<ellipse cx="34" cy="51" rx="27" ry="9" fill="#17221b" opacity=".33"/><g stroke="#26352d" stroke-width="1.4" stroke-linejoin="round">
+<path d="M9 46h47v9H9z" fill="#41543b"/><path d="M17 16h27v31H17z" fill="url(#olive)"/><path d="M14 14h32v8H14z" fill="url(#metal)"/>
+<path d="M21 18h17v21H21z" fill="#354737"/><path d="M29 18v21" stroke="#cad1ad" stroke-width="4"/><path d="M21 37h18v6H21z" fill="url(#metal)"/>
+<ellipse cx="31" cy="43" rx="15" ry="9" fill="#1f342b"/><ellipse cx="31" cy="41" rx="15" ry="9" fill="#3a4a37"/><ellipse cx="31" cy="41" rx="8" ry="5" fill="#8da085"/><ellipse cx="31" cy="41" rx="4" ry="2.5" fill="#334b37"/>
+<path d="M17 40l2 3m0-8 2 3m3-6 2 3m4-5 1 3m5-2-1 3m6-1-2 3m5 1-3 1" stroke="#768368" stroke-width="2"/>
+<rect x="48" y="29" width="9" height="17" rx="2" fill="url(#copper)"/><path d="M49 31h6m-6 4h6m-6 4h6m-6 4h6" stroke="#dbb084" stroke-width="1"/>
+<circle cx="9" cy="38" r="9" fill="#2c3f30"/><circle cx="9" cy="38" r="5" fill="#7b9676"/><circle cx="9" cy="38" r="2" fill="#2d4531"/>
+</g><circle cx="17" cy="18" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="43" cy="18" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="13" cy="50" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/><circle cx="52" cy="50" r="1.2" fill="#c0c7b5" stroke="#34423b" stroke-width=".65"/>
+</svg>
