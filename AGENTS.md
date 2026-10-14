@@ -40,7 +40,7 @@ Use this document to orient code-generating agents.
 - Implement save/load using `src/utils/save.ts` API.
 
 ## Static Hosting
-- Build with `npm run build` → deploy `/dist` to GitHub Pages.
+- Native Cloudflare Git publishes `main` using `npm run build:cloudflare`; the original `npm run build` and Pages workflow remain recovery source.
 - Keep routes simple (hash-based) to avoid server rewrites.
 
 ## Licensing

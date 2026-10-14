@@ -67,3 +67,8 @@ The original generator and GitHub Pages build remain available for recovery.
 Cloudflare-only postprocessing adds a no-store revision marker and terminal404;
 previews are disabled and deployment credentials stay in Cloudflare.
 Application source, local data formats and existing public URLs are preserved.
+
+October14Cloudflare hosting acceptance passed: exact native route build/version,
+managed HTTPS, all generated asset comparisons, real404, browser rendering,
+received visits and request/status metrics. Existing local data was not reset.
+Hosting acceptance does not expand wallet, messaging, hardware or PWA-device claims.
