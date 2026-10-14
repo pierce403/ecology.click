@@ -59,3 +59,11 @@ Saves remain in this browser. Autosave retains world bounds, explored chunks, de
 The main-branch GitHub Actions workflow installs the lockfile, runs simulation checks, typechecks/builds and publishes `dist/` to GitHub Pages. Keep generated dependencies and build output out of source control.
 
 Code is MIT. Artwork in this repository is original. Open Source Ecology names and conceptual progression are attributed above; retain the appropriate CC-BY-SA attribution if importing blueprint text, images or CAD-derived assets later.
+
+## Cloudflare hosting
+
+Native Git publishes `main` with `npm run build:cloudflare` and `npm run deploy`.
+The original generator and GitHub Pages build remain available for recovery.
+Cloudflare-only postprocessing adds a no-store revision marker and terminal404;
+previews are disabled and deployment credentials stay in Cloudflare.
+Application source, local data formats and existing public URLs are preserved.
