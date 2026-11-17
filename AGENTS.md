@@ -44,7 +44,7 @@ Use this document to orient code-generating agents.
 - Keep routes simple (hash-based) to avoid server rewrites.
 
 ## Licensing
-- **Code**: MIT.
+- **Code**: Apache-2.0; historical MIT grant retained in LICENSE-MIT.
 - **OSE blueprint-derived content**: include attributions (CC-BY-SA 4.0) in `docs/` and in-game blueprint viewer.
 
 ## Notes for Future Agents

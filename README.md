@@ -58,7 +58,7 @@ Saves remain in this browser. Autosave retains world bounds, explored chunks, de
 
 The main-branch GitHub Actions workflow installs the lockfile, runs simulation checks, typechecks/builds and publishes `dist/` to GitHub Pages. Keep generated dependencies and build output out of source control.
 
-Code is MIT. Artwork in this repository is original. Open Source Ecology names and conceptual progression are attributed above; retain the appropriate CC-BY-SA attribution if importing blueprint text, images or CAD-derived assets later.
+Original code is Apache-2.0. Artwork in this repository is original. Open Source Ecology names and conceptual progression are attributed above; retain the appropriate CC-BY-SA attribution if importing blueprint text, images or CAD-derived assets later.
 
 ## Cloudflare hosting
 
@@ -72,3 +72,9 @@ October14Cloudflare hosting acceptance passed: exact native route build/version,
 managed HTTPS, all generated asset comparisons, real404, browser rendering,
 received visits and request/status metrics. Existing local data was not reset.
 Hosting acceptance does not expand wallet, messaging, hardware or PWA-device claims.
+
+## Licensing scope
+
+Original project code and documentation are licensed under the [Apache License, Version 2.0](LICENSE). Third-party dependencies, vendored code, quoted material, data, fonts, media, and other third-party assets retain their respective licenses and rights; this grant does not relicense them. Existing license notices and attribution must be preserved.
+
+Earlier MIT grants remain valid; the previous license text is preserved in [LICENSE-MIT](LICENSE-MIT).
